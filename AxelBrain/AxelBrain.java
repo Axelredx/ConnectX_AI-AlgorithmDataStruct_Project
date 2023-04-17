@@ -15,7 +15,7 @@ public class AxelBrain implements CXPlayer{
 	private Integer Columns;
 	private Integer Rows;
 	private Integer ToWin;
-    private final int MAX_DEPTH = 8;
+    private final int MAX_DEPTH = 7;
     private int  TIMEOUT;
     private long START;
     private Integer player;
@@ -23,11 +23,11 @@ public class AxelBrain implements CXPlayer{
 
     public AxelBrain(){}
 
-	// M = numero di righe nella matrice
-	// N = numero di colonne nella matrice
-	// X = numero di gettoni da allineare
-	// first = true se è il primo a giocare
-	// timeout_in_secs = numero massimo di secondi per una mossa
+	// M = rows
+	// N = columns
+	// X = allignement number to win
+	// first = True if it is the first player, False otherwise
+	// timeout_in_secs = max time in seconds for each plays
  
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
         is_first=first;
@@ -115,7 +115,7 @@ public class AxelBrain implements CXPlayer{
             if(checktime())
                 break;
             // Evaluate the move using alpha-beta pruning with current depth
-            int score = alphabeta(board, depth, Integer.MIN_VALUE, Integer.MAX_VALUE, board.currentPlayer(), !is_first);    
+            int score = alphabeta(board.copy(), depth, Integer.MIN_VALUE, Integer.MAX_VALUE, board.currentPlayer() - 1, is_first);    
             // If the score is better than the best score so far, update best score
             if (score > bestScore) {
                 bestScore = score;
@@ -141,7 +141,7 @@ public class AxelBrain implements CXPlayer{
                 // Apply move to the board
                 board.markColumn(col);
                 // Recursively evaluate the move
-                int score = alphabeta(board, depth - 1, alpha, beta, player, false);
+                int score = alphabeta(board.copy(), depth - 1, alpha, beta, player, false);
                 // Undo the move
                 board.unmarkColumn();
                 // Update max score
@@ -167,7 +167,7 @@ public class AxelBrain implements CXPlayer{
                 // Apply move to the board
                 board.markColumn(col);
                 // Recursively evaluate the move
-                int score = alphabeta(board, depth - 1, alpha, beta, player, true);
+                int score = alphabeta(board.copy(), depth - 1, alpha, beta, player, true);
                 // Undo the move
                 board.unmarkColumn();
                 // Update min score
@@ -200,8 +200,8 @@ public class AxelBrain implements CXPlayer{
         }
 
         // Otherwise, calculate the score based on the number of marked cells in each row, 
-        //column, and diagonal
-        int score = 0;
+        //column and diagonal
+        /*int score = 0;
         // Evaluate rows
         for (int i = 0; i < Rows; i++) {
             int numPlayer1Cells = 0;
@@ -266,14 +266,113 @@ public class AxelBrain implements CXPlayer{
                     score += evaluateLine(numPlayer1Cells, numPlayer2Cells);
                 }
             }
+        }        */
+        int score=0;
+        // difference is necessary for unordinary board (for example for 6x7 board is equal to 3)
+        int difference = Columns - ToWin;
+
+        //horizontal check
+        for (int i=0; i < Rows ; i++){
+            for (int j=0; j < Columns - difference; j++){
+                int consecutive_count=0;
+                for (int k=0; k< ToWin; k++){
+                    if(is_first){
+                        if(board.cellState(i,j+k)==CXCellState.P1)
+                            consecutive_count++;
+                        else
+                            consecutive_count=0;
+                    }else{
+                        if(board.cellState(i,j+k)==CXCellState.P2)
+                            consecutive_count++;
+                        else
+                            consecutive_count=0;                        
+                    }
+                }
+                if (consecutive_count > 0) {
+                    score += Math.pow(10, consecutive_count);
+                }
+            }
         }
+
+        //vertical check
+        for (int i=0; i < Rows - difference; i++){
+            for (int j=0; j < Columns; j++){ 
+                int consecutive_count=0;
+                for (int k=0; k< ToWin; k++){
+                    if(is_first){
+                        if(board.cellState(i+k,j)==CXCellState.P1)
+                            consecutive_count++;
+                        else
+                            consecutive_count=0;
+                    }else{
+                        if(board.cellState(i+k,j)==CXCellState.P2)
+                            consecutive_count++;
+                        else
+                            consecutive_count=0;                        
+                    }                    
+                }
+                if (consecutive_count > 0) {
+                    score += Math.pow(10, consecutive_count);
+                }    
+            }
+        }
+
+        //positive slope diagonal check (low-left to high-right)
+        for (int i = 0; i < Rows - difference; i++){
+            for (int j = 0; j< Columns -difference; j++){
+                int consecutive_count=0;
+                for (int k=0; k< ToWin; k++){
+                    if(is_first){
+                        if(board.cellState(i+k,j+k)==CXCellState.P1)
+                            consecutive_count++;
+                        else
+                            consecutive_count=0;
+                    }else{
+                        if(board.cellState(i+k,j+k)==CXCellState.P2)
+                            consecutive_count++;
+                        else
+                            consecutive_count=0;                        
+                    }                    
+                }
+                if (consecutive_count > 0) {
+                    score += Math.pow(10, consecutive_count);
+                }               
+            }
+        }
+
+        //negative slope diagonal check (low-right to high-left)
+        for (int i = difference; i < Rows ; i++){
+            for (int j = 0; j< Columns - difference; j++){
+                int consecutive_count=0;
+                for (int k=0; k< ToWin; k++){
+                    if(is_first){
+                        if(board.cellState(i-k,j+k)==CXCellState.P1)
+                            consecutive_count++;
+                        else
+                            consecutive_count=0;
+                    }else{
+                        if(board.cellState(i-k,j+k)==CXCellState.P2)
+                            consecutive_count++;
+                        else
+                            consecutive_count=0;                        
+                    }                    
+                }
+                if (consecutive_count > 0) {
+                    score += Math.pow(10, consecutive_count);
+                }               
+            }
+        }
+
+        return (is_first ) ? score : -score;
         // Return the calculated score
-        return score;   
+       // return score;  
+        
+        
     }
 
     private int evaluateLine(int numPlayer1Cells, int numPlayer2Cells) {
         int score = 0;
-    
+        /* 
         // If there are no player 2 cells in the line, 
         //return a score based on the number of player 1 cells
         if (numPlayer2Cells == 0) {
@@ -290,7 +389,7 @@ public class AxelBrain implements CXPlayer{
                 case 4:
                     score = 1000;
                     break;
-            }*/
+            }//
             
                 if(numPlayer1Cells==1)
                     score=1;
@@ -316,7 +415,7 @@ public class AxelBrain implements CXPlayer{
                 case 4:
                     score = -1000;
                     break;
-            }*/
+            }//
             
                 if(numPlayer2Cells==1)
                     score=-1;
@@ -325,9 +424,17 @@ public class AxelBrain implements CXPlayer{
                     score =  (int)tmp_scr;
                     score = score * (-1);
             }
+        }*/
+
+        if(is_first){
+            double tmp_scr = Math.pow(10,numPlayer1Cells);
+            score = (int)tmp_scr;
+        }else{
+            double tmp_scr = Math.pow(10,numPlayer2Cells);
+            score = (int)tmp_scr;            
         }
     
-        return score;
+        return (is_first) ? score : -score;
     }
     
     public String playerName(){
