@@ -191,12 +191,12 @@ public class AxelBrain implements CXPlayer{
         // If the game is won by the player1, return a high score
         if (board.gameState() == CXGameState.WINP1 && player == 1 ||
                 board.gameState() == CXGameState.WINP2 && player == 2) {
-            return Integer.MAX_VALUE;
+                return Integer.MAX_VALUE;
         }
         // If the game is won by the player2, return a low score
         if (board.gameState() == CXGameState.WINP1 && player == 2 ||
                 board.gameState() == CXGameState.WINP2 && player == 1) {
-            return Integer.MIN_VALUE;
+                return Integer.MIN_VALUE;
         }
 
         // Otherwise, calculate the score based on the number of marked cells in each row, 
@@ -269,7 +269,7 @@ public class AxelBrain implements CXPlayer{
         }        */
         int score=0;
         // difference is necessary for unordinary board (for example for 6x7 board is equal to 3)
-        int difference = Columns - ToWin;
+        int difference = ToWin - 1;
 
         //horizontal check
         for (int i=0; i < Rows ; i++){
