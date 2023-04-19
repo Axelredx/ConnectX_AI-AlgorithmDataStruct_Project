@@ -15,15 +15,15 @@ import javax.lang.model.util.ElementScanner6;
 import java.lang.Math;
 
 public class AxelBrain2 implements CXPlayer{
-    private static Boolean is_first;
+    private  Boolean is_first;
 	private Integer Columns;
 	private Integer Rows;
 	private Integer ToWin;
-    private final int MAX_DEPTH = 6;
-    private Random rand;
+    private final int MAX_DEPTH = 7;
     private int  TIMEOUT;
     private long START;
-    private Integer player;
+    private Integer AI_player;
+    private Integer OPPO_player;
 
     public AxelBrain2(){}
 
@@ -35,6 +35,13 @@ public class AxelBrain2 implements CXPlayer{
  
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
         is_first=first;
+        if(first==true){
+            AI_player=1;
+            OPPO_player=2;
+        }else{
+            AI_player=2;
+            OPPO_player=1;
+        }
         Columns=N;
         Rows=M;
         ToWin=K;
@@ -50,6 +57,253 @@ public class AxelBrain2 implements CXPlayer{
 
     }    
 
+    public int play(CXBoard board){
+        Integer[] col_avaible = board.getAvailableColumns();
+        int best_move = col_avaible[col_avaible.length/2];
+        int best_score = Integer.MIN_VALUE;
+
+        for(int i=0; i < col_avaible.length; i++){
+            int col = col_avaible[i];
+            board.markColumn(col);
+            int score = iterativeDeepening(board);
+            board.unmarkColumn();
+
+            if(score > best_score){
+                best_score = score;
+                best_move = col;
+            }
+
+        }
+
+        return best_move;
+    }
+
+    public int iterativeDeepening(CXBoard board) {
+        int alpha = Integer.MAX_VALUE;
+        int beta = Integer.MIN_VALUE;
+        int best_score = Integer.MIN_VALUE;
+    
+        // Iterate through depths
+        for (int depth = 0; depth < MAX_DEPTH; depth++) {
+            //check time every iteration
+                if(checktime())
+                    break;
+            // Evaluate the move using alpha-beta pruning with current depth
+            int score = alphabeta(board,MAX_DEPTH,alpha,beta,true);    
+            // If the score is better than the best score so far, update best score
+            if (score > best_score) {
+                best_score = score;
+            }
+        }
+    
+        return best_score;
+    }
+
+    private int alphabeta(CXBoard board, int depth, int alpha, int beta, boolean maximizing){
+        if(depth == 0 || board.gameState() != CXGameState.OPEN){
+            if(board.gameState() != CXGameState.OPEN){
+                if(AI_player==1 && OPPO_player==2){
+                    if(board.gameState()==CXGameState.WINP1)
+                        return Integer.MAX_VALUE;
+                    else if(board.gameState()==CXGameState.WINP2)
+                        return Integer.MIN_VALUE;
+                    else if(board.gameState()==CXGameState.DRAW)
+                        //draw
+                        return 0;
+                }else{
+                    if(board.gameState()==CXGameState.WINP2)
+                        return Integer.MAX_VALUE;
+                    else if(board.gameState()==CXGameState.WINP1)
+                        return Integer.MIN_VALUE;
+                    else if(board.gameState()==CXGameState.DRAW)
+                        //draw
+                        return 0;                    
+                }
+            }else
+                return evaluation(board);
+        }
+
+        if(maximizing){
+            int max_value = Integer.MIN_VALUE;
+            for(int i : board.getAvailableColumns()){
+                board.markColumn(i);
+                int score = alphabeta(board, depth - 1, alpha, beta, false);
+                board.unmarkColumn();
+
+                max_value = Math.max(max_value, score);
+                alpha = Math.max(alpha, max_value);
+                if(alpha >= beta)
+                    break;
+            }
+
+            return max_value;
+        }else{
+            int min_value = Integer.MAX_VALUE;
+            for(int i : board.getAvailableColumns()){
+                board.markColumn(i);
+                int score = alphabeta(board.copy(), depth - 1, alpha, beta, true);
+                board.unmarkColumn();
+
+                min_value = Math.min(min_value, score);
+                beta = Math.min(beta, min_value);
+                if(alpha >= beta)
+                    break;
+            }
+
+            return min_value;            
+        }
+    }
+
+    private int evaluation(CXBoard board){
+        int score = 0;
+        int difference = ToWin - 1;
+
+        //horizontal check
+        for (int i=0; i < Rows ; i++){
+            for (int j=0; j < Columns - difference; j++){
+                int ai_consecutive_count=0;
+                int oppo_consecutive_count=0;
+                for (int k=0; k< ToWin; k++){
+                    if(is_first){
+                        if(board.cellState(i,j+k)==CXCellState.P1){
+                            ai_consecutive_count++;
+                            //score+= 10;
+                        //}else if(board.cellState(i,j+k)==CXCellState.P2){
+                           // oppo_consecutive_count++;
+                            //score-=10;
+                        }else{
+                            ai_consecutive_count=0;
+                            //oppo_consecutive_count=0;
+                        }
+                    }else{
+                        //ai=2 oppo=1
+                        /*if(board.cellState(i,j+k)==CXCellState.P1){
+                            oppo_consecutive_count++;
+                            //score-=10;
+                        }else*/ if(board.cellState(i,j+k)==CXCellState.P2){
+                            ai_consecutive_count++;
+                            //score+=10;
+                        }else{
+                            ai_consecutive_count=0;
+                            //oppo_consecutive_count=0;
+                        }                   
+                    }
+                }
+                
+                if (ai_consecutive_count > 0){// || oppo_consecutive_count > 0){
+                    score += Math.pow(10, ai_consecutive_count);//- Math.pow(10, oppo_consecutive_count);
+                }
+            }
+        }
+
+        //vertical check
+        for (int i=0; i < Rows - difference; i++){
+            for (int j=0; j < Columns; j++){ 
+                int ai_consecutive_count=0;
+                int oppo_consecutive_count=0;
+                for (int k=0; k< ToWin; k++){
+                    if(is_first){
+                        if(board.cellState(i+k,j)==CXCellState.P1){
+                            ai_consecutive_count++;
+                            //score+=10;
+                        //}else if(board.cellState(i+k,j)==CXCellState.P2){
+                           // oppo_consecutive_count++;
+                            //score-10;
+                        }else{
+                            ai_consecutive_count=0;
+                            //oppo_consecutive_count=0;
+                        }
+                    }else{
+                        //ai=2 oppo=1
+                        /*if(board.cellState(i+k,j)==CXCellState.P1){
+                            oppo_consecutive_count++;
+
+                        }else */if(board.cellState(i+k,j)==CXCellState.P2){
+                            ai_consecutive_count++;
+                        }else{
+                            ai_consecutive_count=0;
+                            //oppo_consecutive_count=0;
+                        }                        
+                    }
+                }
+                
+                if (ai_consecutive_count > 0){// || oppo_consecutive_count > 0){
+                    score += Math.pow(10, ai_consecutive_count);// - Math.pow(10, oppo_consecutive_count);
+                }   
+            }
+        }
+
+        //positive slope diagonal check (low-left to high-right)
+        for (int i = 0; i < Rows - difference; i++){
+            for (int j = 0; j< Columns -difference; j++){
+                int ai_consecutive_count=0;
+                int oppo_consecutive_count=0;
+                for (int k=0; k< ToWin; k++){
+                    if(is_first){
+                        if(board.cellState(i+k,j+k)==CXCellState.P1){
+                            ai_consecutive_count++;
+                        // }else if(board.cellState(i+k,j+k)==CXCellState.P2){
+                           // oppo_consecutive_count++;
+                        }else{
+                            ai_consecutive_count=0;
+                            //oppo_consecutive_count=0;
+                        }
+                    }else{
+                        //ai=2 oppo=1
+                        /*if(board.cellState(i+k,j+k)==CXCellState.P1){
+                            oppo_consecutive_count++;
+                        }else */if(board.cellState(i+k,j+k)==CXCellState.P2){
+                            ai_consecutive_count++;
+                        }else{
+                            ai_consecutive_count=0;
+                            //oppo_consecutive_count=0;
+                        }                    
+                    }
+                }
+                
+                if (ai_consecutive_count > 0){// || oppo_consecutive_count > 0) {
+                    score += Math.pow(10, ai_consecutive_count);// - Math.pow(10, oppo_consecutive_count);
+                }              
+            }
+        }
+
+        //negative slope diagonal check (low-right to high-left)
+        for (int i = difference; i < Rows ; i++){
+            for (int j = 0; j< Columns - difference; j++){
+                int ai_consecutive_count=0;
+                int oppo_consecutive_count=0;
+                for (int k=0; k< ToWin; k++){
+                    if(is_first){
+                        if(board.cellState(i-k,j+k)==CXCellState.P1){
+                            ai_consecutive_count++;
+                        //}else if(board.cellState(i-k,j+k)==CXCellState.P2){
+                          //  oppo_consecutive_count++;
+                        }else{
+                            ai_consecutive_count=0;
+                          //  oppo_consecutive_count=0;
+                        }
+                    }else{
+                        //ai=2 oppo=1
+                        /*if(board.cellState(i-k,j+k)==CXCellState.P1){
+                            oppo_consecutive_count++;
+                        }else*/ if(board.cellState(i-k,j+k)==CXCellState.P2){
+                            ai_consecutive_count++;
+                        }else{
+                            ai_consecutive_count=0;
+                           // oppo_consecutive_count=0;
+                        }                        
+                    }
+                }
+                
+                if (ai_consecutive_count > 0){// || oppo_consecutive_count > 0) {
+                    score += Math.pow(10, ai_consecutive_count); //- Math.pow(10, oppo_consecutive_count);
+                }                
+            }
+        }
+
+        return score;
+    }
+
     private boolean checktime(){
 		if((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0))
             return true;
@@ -57,199 +311,7 @@ public class AxelBrain2 implements CXPlayer{
             return false;
 	}
     
-    public int play(CXBoard board) {
-        int alpha = Integer.MIN_VALUE;
-        int beta = Integer.MAX_VALUE;
-        // Get the available columns
-        Integer[] columns = board.getAvailableColumns();
-        // Initialize best move to first available column
-        int bestMove = columns[columns.length/2];
-        // Initialize best score to negative infinity
-        int bestScore = Integer.MIN_VALUE;
-    
-        // Iterate through available columns
-        for (int i = 0; i < columns.length; i++) {
-            int col = columns[i];
-            // Apply move to the board
-            board.markColumn(col);
-            // Evaluate the move using alpha-beta pruning
-            int score = alphabeta(board, MAX_DEPTH, alpha, beta, is_first);
-            // Undo the move
-            board.unmarkColumn();
-    
-            // If the score is better than the best score so far, update best score and best move
-            if (score > bestScore) {
-                bestScore = score;
-                bestMove = col;
-            }
-    
-        }
-        return bestMove;
-    }
-    
-    public int alphabeta(CXBoard board, int depth, int alpha, int beta, boolean maximizingPlayer) {
-        // Base case: if depth limit is reached or game is over, return the score of the board
-        if (depth == 0 || board.gameState() != CXGameState.OPEN) {
-            if(board.gameState()==CXGameState.WINP1)
-                return Integer.MAX_VALUE;
-            else if (board.gameState()==CXGameState.WINP2)
-                return Integer.MIN_VALUE;
-            else if (board.gameState()==CXGameState.DRAW)
-                return 0;
-            else
-                return evaluate(board);
-        }
-    
-        // If maximizing player's turn
-        if (maximizingPlayer == true) {
-            int maxScore = Integer.MIN_VALUE;
-    
-            // Iterate through available columns
-            for (int col : board.getAvailableColumns()) {
-                board.markColumn(col);
-                // Recursively evaluate the move
-                int score = alphabeta(board, depth - 1, alpha, beta, false);
-                // Undo the move
-                board.unmarkColumn();
-    
-                // Update max score
-                maxScore = Math.max(maxScore, score);
-    
-                // Update alpha
-                alpha = Math.max(alpha, score);
-    
-                // Check if beta cutoff is possible
-                if (alpha >= beta) {
-                    break;
-                }
-            }
-            return maxScore;
-        } 
-        // If minimizing player's turn
-        else {
-            int minScore = Integer.MAX_VALUE;
-    
-            // Iterate through available columns
-            for (int col : board.getAvailableColumns()) {
-                board.markColumn(col);
-                // Recursively evaluate the move
-                int score = alphabeta(board, depth - 1, alpha, beta, true);
-                // Undo the move
-                board.unmarkColumn();
-    
-                // Update min score
-                minScore = Math.min(minScore, score);
-    
-                // Update beta
-                beta = Math.min(beta, score);
-    
-                // Check if alpha cutoff is possible
-                if (alpha >= beta) {
-                    break;
-                }
-            }
-            return minScore;
-        }
-    }
 
-    public int evaluate(CXBoard board){
-        int score=0;
-        int diffference = Columns - ToWin;
-
-        //horizontal check
-        for (int i=0; i < Rows ; i++){
-            for (int j=0; j < Columns - diffference; j++){
-                int consecutive_count=0;
-                for (int k=0; k< ToWin; k++){
-                    if(is_first){
-                        if(board.cellState(i,j+k)==CXCellState.P1)
-                            consecutive_count++;
-                        else
-                            consecutive_count=0;
-                    }else{
-                        if(board.cellState(i,j+k)==CXCellState.P2)
-                            consecutive_count++;
-                        else
-                            consecutive_count=0;                        
-                    }
-                }
-                if (consecutive_count > 0) {
-                    score += Math.pow(10, consecutive_count);
-                }
-            }
-        }
-
-        //vertical check
-        for (int i=0; i < Rows - diffference; i++){
-            for (int j=0; j < Columns; j++){ 
-                int consecutive_count=0;
-                for (int k=0; k< ToWin; k++){
-                    if(is_first){
-                        if(board.cellState(i+k,j)==CXCellState.P1)
-                            consecutive_count++;
-                        else
-                            consecutive_count=0;
-                    }else{
-                        if(board.cellState(i+k,j)==CXCellState.P2)
-                            consecutive_count++;
-                        else
-                            consecutive_count=0;                        
-                    }                    
-                }
-                if (consecutive_count > 0) {
-                    score += Math.pow(10, consecutive_count);
-                }    
-            }
-        }
-
-        //positive slope diagonal check (low-left to high-right)
-        for (int i = 0; i < Rows - diffference; i++){
-            for (int j = 0; j< Columns -diffference; j++){
-                int consecutive_count=0;
-                for (int k=0; k< ToWin; k++){
-                    if(is_first){
-                        if(board.cellState(i+k,j+k)==CXCellState.P1)
-                            consecutive_count++;
-                        else
-                            consecutive_count=0;
-                    }else{
-                        if(board.cellState(i+k,j+k)==CXCellState.P2)
-                            consecutive_count++;
-                        else
-                            consecutive_count=0;                        
-                    }                    
-                }
-                if (consecutive_count > 0) {
-                    score += Math.pow(10, consecutive_count);
-                }               
-            }
-        }
-
-        //negative slope diagonal check (low-right to high-left)
-        for (int i = diffference; i < Rows ; i++){
-            for (int j = 0; j< Columns - diffference; j++){
-                int consecutive_count=0;
-                for (int k=0; k< ToWin; k++){
-                    if(is_first){
-                        if(board.cellState(i-k,j+k)==CXCellState.P1)
-                            consecutive_count++;
-                        else
-                            consecutive_count=0;
-                    }else{
-                        if(board.cellState(i-k,j+k)==CXCellState.P2)
-                            consecutive_count++;
-                        else
-                            consecutive_count=0;                        
-                    }                    
-                }
-                if (consecutive_count > 0) {
-                    score += Math.pow(10, consecutive_count);
-                }               
-            }
-        }
-
-        return (is_first) ? score : -score;
-    }
 
     public String playerName(){
         return "AxelBrain2";
