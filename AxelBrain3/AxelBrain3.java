@@ -1,5 +1,4 @@
-package connectx.AxelBrain2;
-
+package connectx.AxelBrain3;
 import connectx.CXPlayer;
 import connectx.CXBoard;
 import connectx.CXGameState;
@@ -13,35 +12,26 @@ import javax.lang.model.util.ElementScanner6;
 import java.lang.Math;
 import java.util.HashMap;
 
-public class AxelBrain2 implements CXPlayer{
-    private  Boolean is_first;
-	private Integer Columns;
-	private Integer Rows;
-	private Integer ToWin;
+public class AxelBrain3 implements CXPlayer{
+    private Integer Columns;
+    private Integer Rows;
+    private Boolean is_first;
     private final int MAX_DEPTH = 10;
-    private final int MAX_BRANCHING = 7;
+    private final int MAX_BRANCHING = 10;
     private int  TIMEOUT;
-    private long START;
-    private Integer AI_player;
-    private Integer OPPO_player;
+    private long START;  
+    private Integer ToWin;  
 
-    public AxelBrain2(){}
+    public AxelBrain3(){}
 
-	// M = numero di righe nella matrice -- Rows
-	// N = numero di colonne nella matrice -- Columns
-	// X = numero di gettoni da allineare -- Number of token needed to align to win
-	// first = true se è il primo a giocare -- True if the AI is playing first
-	// timeout_in_secs = numero massimo di secondi per una mossa -- Maximum of time per move
+	// M = numero di righe nella matrice
+	// N = numero di colonne nella matrice
+	// X = numero di gettoni da allineare
+	// first = true se è il primo a giocare
+	// timeout_in_secs = numero massimo di secondi per una mossa
  
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
         is_first=first;
-        if(first==true){
-            AI_player=1;
-            OPPO_player=2;
-        }else{
-            AI_player=2;
-            OPPO_player=1;
-        }
         Columns=N;
         Rows=M;
         ToWin=K;
@@ -51,44 +41,46 @@ public class AxelBrain2 implements CXPlayer{
     public int selectColumn(CXBoard B){
         START = System.currentTimeMillis(); // Save starting time
         return play(B);
-    }    
+    } 
 
     public int play(CXBoard board){
         Integer[] col_avaible = board.getAvailableColumns();
         int best_move = col_avaible[col_avaible.length/2];
+        int alpha = Integer.MAX_VALUE;
+        int beta = Integer.MIN_VALUE;
         int best_score = Integer.MIN_VALUE;
+        // HashMap to store board positions and scores 
+        //(this type of hashtable can store null by default)
+        HashMap<CXBoard, Integer> scoreMap = new HashMap<>();
 
-        for(int i=0; i < col_avaible.length; i++){
-            int col = col_avaible[i];
-            board.markColumn(col);
-            int score = iterativeDeepening(board);
+        for(int i : board.getAvailableColumns()){
+            board.markColumn(i);
+            int score = alphabeta(board,MAX_BRANCHING,alpha,beta,false, scoreMap);
             board.unmarkColumn();
 
             if(score > best_score){
                 best_score = score;
-                best_move = col;
+                best_move = i;
             }
 
         }
         return best_move;
     }
 
-    public int iterativeDeepening(CXBoard board) {
+    /*public int iterativeDeepening(CXBoard board) {
         int alpha = Integer.MAX_VALUE;
         int beta = Integer.MIN_VALUE;
         int best_score = Integer.MIN_VALUE;
         // HashMap to store board positions and scores (this type of hashtable can store null by default)
-        HashMap<CXBoard, Integer> scoreMap = new HashMap<>(); 
-
+        HashMap<CXBoard, Integer> scoreMap = new HashMap<>();
+    
         // Iterate through max_depth (higher depth, higher is the number visited in width)
         for (int depth = 0; depth < MAX_DEPTH; depth++) {
             //check time every iteration
             if(checktime())
                 break;
             // Evaluate the move using alpha-beta pruning with a branching depth
-            int score = alphabeta(board,MAX_BRANCHING,alpha,beta,false,scoreMap);   
-            // Store the score of the current board position in the HashMap
-            scoreMap.put(board, score); 
+            int score = alphabeta(board,MAX_BRANCHING,alpha,beta,false, scoreMap);    
             // If the score is better than the best score so far, update best score
             if (score > best_score) {
                 best_score = score;
@@ -96,35 +88,24 @@ public class AxelBrain2 implements CXPlayer{
         }
     
         return best_score;
-    }
+    }*/
 
     private int alphabeta(CXBoard board, int depth, int alpha, int beta, boolean maximizing, HashMap<CXBoard, Integer> scoreMap){
         // Check if the board position's score is already in the HashMap
-        Integer map_score = scoreMap.get(board); 
+        /*Integer map_score = scoreMap.get(board); 
         if (map_score != null) {
             return map_score;
-        }
+        }*/
 
-        if(depth == 0 || board.gameState() != CXGameState.OPEN){
-            if(board.gameState() != CXGameState.OPEN){
-                if(AI_player==1 && OPPO_player==2){
-                    if(board.gameState()==CXGameState.WINP1)
-                        return Integer.MAX_VALUE;
-                    else if(board.gameState()==CXGameState.WINP2)
-                        return Integer.MIN_VALUE;
-                    else if(board.gameState()==CXGameState.DRAW)
-                        //draw
-                        return 0;
-                }else{
-                    if(board.gameState()==CXGameState.WINP2)
-                        return Integer.MAX_VALUE;
-                    else if(board.gameState()==CXGameState.WINP1)
-                        return Integer.MIN_VALUE;
-                    else if(board.gameState()==CXGameState.DRAW)
-                        //draw
-                        return 0;                    
-                }
-            }else
+        if(depth == 0 || board.gameState() != CXGameState.OPEN){  
+            if(board.gameState()==CXGameState.WINP1)
+                return Integer.MAX_VALUE;
+            else if(board.gameState()==CXGameState.WINP2)
+                return Integer.MIN_VALUE;
+            else if(board.gameState()==CXGameState.DRAW)
+                 //draw
+                return 0;
+            else
                 return evaluation(board);
         }
 
@@ -146,7 +127,7 @@ public class AxelBrain2 implements CXPlayer{
             int min_value = Integer.MAX_VALUE;
             for(int i : board.getAvailableColumns()){
                 board.markColumn(i);
-                int score = alphabeta(board.copy(), depth - 1, alpha, beta, true, scoreMap);
+                int score = alphabeta(board, depth - 1, alpha, beta, true, scoreMap);
                 board.unmarkColumn();
 
                 min_value = Math.min(min_value, score);
@@ -159,10 +140,12 @@ public class AxelBrain2 implements CXPlayer{
         }
     }
 
-
+//versione migliore in AxelBrain2
     private int evaluation(CXBoard board){
         int score = 0;
-        int difference = ToWin - 1;
+        int player = board.currentPlayer();
+        int opponent = (is_first) ? 2:1;
+        int difference = ToWin ;
     
         // horizontal check
         for (int i = 0; i < Rows; i++){
@@ -171,16 +154,19 @@ public class AxelBrain2 implements CXPlayer{
                 int oppo_consecutive_count = 0;
                 for (int k = 0; k < ToWin; k++){
                     if (board.cellState(i, j+k) == CXCellState.P1) {
-                        ai_consecutive_count++;
+                        if(is_first)
+                            ai_consecutive_count++;
+                        else
+                            oppo_consecutive_count++;
                     } else if (board.cellState(i, j+k) == CXCellState.P2) {
-                        oppo_consecutive_count++;
+                        if(is_first)
+                            oppo_consecutive_count++;
+                        else
+                            ai_consecutive_count++;
                     }
                 }
-                if (oppo_consecutive_count == 0) {
-                    score += Math.pow(10, ai_consecutive_count);
-                } else if (ai_consecutive_count == 0) {
-                    score -= Math.pow(10, oppo_consecutive_count);
-                }
+                score += evaluateLine(ai_consecutive_count, oppo_consecutive_count, player);
+
             }
         }
     
@@ -191,16 +177,18 @@ public class AxelBrain2 implements CXPlayer{
                 int oppo_consecutive_count = 0;
                 for (int k = 0; k < ToWin; k++){
                     if (board.cellState(i+k, j) == CXCellState.P1) {
-                        ai_consecutive_count++;
+                        if(is_first)
+                            ai_consecutive_count++;
+                        else
+                            oppo_consecutive_count++;
                     } else if (board.cellState(i+k, j) == CXCellState.P2) {
-                        oppo_consecutive_count++;
+                        if(is_first)
+                            oppo_consecutive_count++;
+                        else
+                            ai_consecutive_count++;
                     }
                 }
-                if (oppo_consecutive_count == 0) {
-                    score += Math.pow(10, ai_consecutive_count);
-                } else if (ai_consecutive_count == 0) {
-                    score -= Math.pow(10, oppo_consecutive_count);
-                }
+                score += evaluateLine(ai_consecutive_count, oppo_consecutive_count, player);
             }
         }
     
@@ -209,18 +197,22 @@ public class AxelBrain2 implements CXPlayer{
             for (int j = 0; j < Columns - difference; j++){
                 int ai_consecutive_count = 0;
                 int oppo_consecutive_count = 0;
+                boolean ai_player = true;
+                boolean oppo_player = true;
                 for (int k = 0; k < ToWin; k++){
                     if (board.cellState(i+k, j+k) == CXCellState.P1) {
-                        ai_consecutive_count++;
+                        if(is_first)
+                            ai_consecutive_count++;
+                        else
+                            oppo_consecutive_count++;
                     } else if (board.cellState(i+k, j+k) == CXCellState.P2) {
-                        oppo_consecutive_count++;
+                        if(is_first)
+                            oppo_consecutive_count++;
+                        else
+                            ai_consecutive_count++;
                     }
                 }
-                if (oppo_consecutive_count == 0) {
-                    score += Math.pow(10, ai_consecutive_count);
-                } else if (ai_consecutive_count == 0) {
-                    score -= Math.pow(10, oppo_consecutive_count);
-                }
+                score += evaluateLine(ai_consecutive_count, oppo_consecutive_count, player);
             }
         }
     
@@ -231,29 +223,60 @@ public class AxelBrain2 implements CXPlayer{
                 int oppo_consecutive_count = 0;
                 for (int k = 0; k < ToWin; k++){
                     if (board.cellState(i-k, j+k) == CXCellState.P1) {
-                        ai_consecutive_count++;
+                        if(is_first)
+                            ai_consecutive_count++;
+                        else
+                            oppo_consecutive_count++;
                     } else if (board.cellState(i-k, j+k) == CXCellState.P2) {
-                        oppo_consecutive_count++;
+                        if(is_first)
+                            oppo_consecutive_count++;
+                        else
+                            ai_consecutive_count++;
                     }
+
                 }
-                if (oppo_consecutive_count == 0) {
-                    score += Math.pow(10, ai_consecutive_count);
-                } else if (ai_consecutive_count == 0) {
-                    score -= Math.pow(10, oppo_consecutive_count);
-                }
+                score += evaluateLine(ai_consecutive_count, oppo_consecutive_count, player);
             }
         }
-        return (is_first)? score : -score;
+
+        return (is_first)? score:-score;
     }
 
+    private int evaluateLine(int playerCount, int opponentCount, int currentPlayer) {
+        int score = 0;
+    
+        if (playerCount > 0 && opponentCount == 0) {
+            // Player has a line without opponent's pieces
+            score += Math.pow(10, playerCount);
+        } else if (playerCount == 0 && opponentCount > 0) {
+            // Opponent has a line without player's pieces
+            score -= Math.pow(10, opponentCount);
+        } else if (playerCount > 0 && opponentCount > 0) {
+            // Both player and opponent have pieces in the line
+            // Adjust score based on the current player's advantage
+            if (currentPlayer == 1) {
+                score += Math.pow(10, playerCount - 1);
+            } else {
+                score -= Math.pow(10, opponentCount - 1);
+            }
+        }
+    
+        // Additional considerations
+        if (playerCount + opponentCount >= 2) {
+            // Encourage making longer lines
+            int lineLength = playerCount + opponentCount;
+            score += Math.pow(10, lineLength - 2);
+        }
+    
+        return score;
+    }
+    
+
     private boolean checktime(){
-		if((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0))
-            return true;
-        else
-            return false;
+		return ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0));
 	}
     
     public String playerName(){
-        return "AxelBrain2";
+        return "AxelBrain3";
     }
 }
