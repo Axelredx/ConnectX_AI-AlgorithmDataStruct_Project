@@ -86,7 +86,7 @@ public class AxelBrain implements CXPlayer{
             if(checktime())
                 break;
             // Evaluate the move using alpha-beta pruning with a branching depth
-            int score = alphabeta(board,MAX_BRANCHING,alpha,beta,true, scoreMap);    
+            int score = alphabeta(board,MAX_BRANCHING,alpha,beta,false, scoreMap);    
             // If the score is better than the best score so far, update best score
             if (score > best_score) {
                 best_score = score;
@@ -105,7 +105,7 @@ public class AxelBrain implements CXPlayer{
 
         if(depth == 0 || board.gameState() != CXGameState.OPEN){
             if(board.gameState() != CXGameState.OPEN){
-                if(AI_player==1 && OPPO_player==2){
+                if(is_first){
                     if(board.gameState()==CXGameState.WINP1)
                         return Integer.MAX_VALUE;
                     else if(board.gameState()==CXGameState.WINP2)
