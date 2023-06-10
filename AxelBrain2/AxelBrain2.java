@@ -18,12 +18,10 @@ public class AxelBrain2 implements CXPlayer{
 	private Integer Columns;
 	private Integer Rows;
 	private Integer ToWin;
-    private final int MAX_DEPTH = 10;
-    private final int MAX_BRANCHING = 7;
+    private final int MAX_DEPTH = 1000;
+    private final int MAX_BRANCHING = 3;
     private int  TIMEOUT;
     private long START;
-    private Integer AI_player;
-    private Integer OPPO_player;
 
     public AxelBrain2(){}
 
@@ -35,13 +33,6 @@ public class AxelBrain2 implements CXPlayer{
  
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
         is_first=first;
-        if(first==true){
-            AI_player=1;
-            OPPO_player=2;
-        }else{
-            AI_player=2;
-            OPPO_player=1;
-        }
         Columns=N;
         Rows=M;
         ToWin=K;
@@ -58,7 +49,17 @@ public class AxelBrain2 implements CXPlayer{
         int best_move = col_avaible[col_avaible.length/2];
         int best_score = Integer.MIN_VALUE;
 
+        //best move if matrix is empty or 1 cell is marked by opponent
+        if(board.numOfMarkedCells()==0)
+            return col_avaible.length/2;
+        else if(board.numOfMarkedCells()==1 && !is_first){
+            return col_avaible.length/2+1;
+        }
+
         for(int i=0; i < col_avaible.length; i++){
+            //check time every iteration
+            if(checktime())
+                break;
             int col = col_avaible[i];
             board.markColumn(col);
             int score = iterativeDeepening(board);
@@ -107,7 +108,7 @@ public class AxelBrain2 implements CXPlayer{
 
         if(depth == 0 || board.gameState() != CXGameState.OPEN){
             if(board.gameState() != CXGameState.OPEN){
-                if(AI_player==1 && OPPO_player==2){
+                if(is_first){
                     if(board.gameState()==CXGameState.WINP1)
                         return Integer.MAX_VALUE;
                     else if(board.gameState()==CXGameState.WINP2)
@@ -131,6 +132,9 @@ public class AxelBrain2 implements CXPlayer{
         if(maximizing){
             int max_value = Integer.MIN_VALUE;
             for(int i : board.getAvailableColumns()){
+                //check time every iteration
+                if(checktime())
+                    break;
                 board.markColumn(i);
                 int score = alphabeta(board, depth - 1, alpha, beta, false, scoreMap);
                 board.unmarkColumn();
@@ -145,6 +149,9 @@ public class AxelBrain2 implements CXPlayer{
         }else{
             int min_value = Integer.MAX_VALUE;
             for(int i : board.getAvailableColumns()){
+                //check time every iteration
+                if(checktime())
+                    break;
                 board.markColumn(i);
                 int score = alphabeta(board.copy(), depth - 1, alpha, beta, true, scoreMap);
                 board.unmarkColumn();
@@ -162,7 +169,7 @@ public class AxelBrain2 implements CXPlayer{
 
     private int evaluation(CXBoard board){
         int score = 0;
-        int difference = ToWin - 1;
+        int difference = ToWin ;
     
         // horizontal check
         for (int i = 0; i < Rows; i++){

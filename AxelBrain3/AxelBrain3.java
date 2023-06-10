@@ -16,8 +16,7 @@ public class AxelBrain3 implements CXPlayer{
     private Integer Columns;
     private Integer Rows;
     private Boolean is_first;
-    private final int MAX_DEPTH = 10;
-    private final int MAX_BRANCHING = 10;
+    private final int MAX_DEPTH = 5;
     private int  TIMEOUT;
     private long START;  
     private Integer ToWin;  
@@ -40,22 +39,28 @@ public class AxelBrain3 implements CXPlayer{
 
     public int selectColumn(CXBoard B){
         START = System.currentTimeMillis(); // Save starting time
-        return play(B);
+        return findBestMove(B);
     } 
 
-    public int play(CXBoard board){
+    public int findBestMove(CXBoard board){
         Integer[] col_avaible = board.getAvailableColumns();
         int best_move = col_avaible[col_avaible.length/2];
+        int best_score = -1;
         int alpha = Integer.MAX_VALUE;
         int beta = Integer.MIN_VALUE;
-        int best_score = Integer.MIN_VALUE;
-        // HashMap to store board positions and scores 
-        //(this type of hashtable can store null by default)
+        // HashMap to store board positions and scores (this type of hashtable can store null by default)
         HashMap<CXBoard, Integer> scoreMap = new HashMap<>();
 
+        //best move if matrix is empty or 1 cell is marked by opponent
+        if(board.numOfMarkedCells()==0)
+            return col_avaible.length/2;
+
         for(int i : board.getAvailableColumns()){
+            //check time every iteration
+            if(checktime())
+                break;
             board.markColumn(i);
-            int score = alphabeta(board,MAX_BRANCHING,alpha,beta,false, scoreMap);
+            int score = alphabeta(board,MAX_DEPTH,alpha,beta,false, scoreMap);
             board.unmarkColumn();
 
             if(score > best_score){
@@ -92,26 +97,22 @@ public class AxelBrain3 implements CXPlayer{
 
     private int alphabeta(CXBoard board, int depth, int alpha, int beta, boolean maximizing, HashMap<CXBoard, Integer> scoreMap){
         // Check if the board position's score is already in the HashMap
-        /*Integer map_score = scoreMap.get(board); 
+        Integer map_score = scoreMap.get(board); 
         if (map_score != null) {
             return map_score;
-        }*/
+        }
 
+        //terminal node, return of heuristic evaluation
         if(depth == 0 || board.gameState() != CXGameState.OPEN){  
-            if(board.gameState()==CXGameState.WINP1)
-                return Integer.MAX_VALUE;
-            else if(board.gameState()==CXGameState.WINP2)
-                return Integer.MIN_VALUE;
-            else if(board.gameState()==CXGameState.DRAW)
-                 //draw
-                return 0;
-            else
-                return evaluation(board);
+            return evaluation(board);
         }
 
         if(maximizing){
             int max_value = Integer.MIN_VALUE;
             for(int i : board.getAvailableColumns()){
+                //check time every iteration
+                if(checktime())
+                    break;
                 board.markColumn(i);
                 int score = alphabeta(board, depth - 1, alpha, beta, false, scoreMap);
                 board.unmarkColumn();
@@ -126,6 +127,9 @@ public class AxelBrain3 implements CXPlayer{
         }else{
             int min_value = Integer.MAX_VALUE;
             for(int i : board.getAvailableColumns()){
+                //check time every iteration
+                if(checktime())
+                    break;
                 board.markColumn(i);
                 int score = alphabeta(board, depth - 1, alpha, beta, true, scoreMap);
                 board.unmarkColumn();
@@ -144,9 +148,34 @@ public class AxelBrain3 implements CXPlayer{
     private int evaluation(CXBoard board){
         int score = 0;
         int player = board.currentPlayer();
-        int opponent = (is_first) ? 2:1;
-        int difference = ToWin ;
+        int difference = ToWin;
+
+        if (board.gameState() == CXGameState.WINP1 && is_first) {
+            return Integer.MAX_VALUE;
+        } else if (board.gameState() == CXGameState.WINP2 && !is_first) {
+            return Integer.MAX_VALUE;
+        } else if (board.gameState() == CXGameState.WINP1 && !is_first) {
+            return Integer.MIN_VALUE;
+        } else if (board.gameState() == CXGameState.WINP2 && is_first) {
+            return Integer.MIN_VALUE;
+        } else if (board.gameState() == CXGameState.DRAW) {
+            return 0;
+        }
     
+        /*int ai_consecutive_vertical_count = 0;
+        //prioritize center column play
+        for(int i = 0; i < Rows; i++){
+            if(is_first){
+                if(board.cellState(i,Columns/2)==CXCellState.P1)
+                    ai_consecutive_vertical_count++;
+            }else{
+                if(board.cellState(i,Columns/2)==CXCellState.P2)
+                    ai_consecutive_vertical_count++;
+            }
+        }
+        if(ai_consecutive_vertical_count>2)
+            score+=ai_consecutive_vertical_count*3;*/
+
         // horizontal check
         for (int i = 0; i < Rows; i++){
             for (int j = 0; j < Columns - difference; j++){
@@ -197,8 +226,6 @@ public class AxelBrain3 implements CXPlayer{
             for (int j = 0; j < Columns - difference; j++){
                 int ai_consecutive_count = 0;
                 int oppo_consecutive_count = 0;
-                boolean ai_player = true;
-                boolean oppo_player = true;
                 for (int k = 0; k < ToWin; k++){
                     if (board.cellState(i+k, j+k) == CXCellState.P1) {
                         if(is_first)
@@ -239,7 +266,7 @@ public class AxelBrain3 implements CXPlayer{
             }
         }
 
-        return (is_first)? score:-score;
+        return score; //(is_first)? score:-score;
     }
 
     private int evaluateLine(int playerCount, int opponentCount, int currentPlayer) {
