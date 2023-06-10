@@ -11,13 +11,14 @@ import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
 import javax.lang.model.util.ElementScanner6;
 import java.lang.Math;
+import java.util.HashMap;
 
 public class AxelBrain implements CXPlayer{
     private  Boolean is_first;
 	private Integer Columns;
 	private Integer Rows;
 	private Integer ToWin;
-    private final int MAX_DEPTH = 8;
+    private final int MAX_DEPTH = 10;
     private final int MAX_BRANCHING = 7;
     private int  TIMEOUT;
     private long START;
@@ -76,6 +77,8 @@ public class AxelBrain implements CXPlayer{
         int alpha = Integer.MAX_VALUE;
         int beta = Integer.MIN_VALUE;
         int best_score = Integer.MIN_VALUE;
+        // HashMap to store board positions and scores (this type of hashtable can store null by default)
+        HashMap<CXBoard, Integer> scoreMap = new HashMap<>();
     
         // Iterate through max_depth (higher depth, higher is the number visited in width)
         for (int depth = 0; depth < MAX_DEPTH; depth++) {
@@ -83,7 +86,7 @@ public class AxelBrain implements CXPlayer{
             if(checktime())
                 break;
             // Evaluate the move using alpha-beta pruning with a branching depth
-            int score = alphabeta(board,MAX_BRANCHING,alpha,beta,true);    
+            int score = alphabeta(board,MAX_BRANCHING,alpha,beta,true, scoreMap);    
             // If the score is better than the best score so far, update best score
             if (score > best_score) {
                 best_score = score;
@@ -93,7 +96,13 @@ public class AxelBrain implements CXPlayer{
         return best_score;
     }
 
-    private int alphabeta(CXBoard board, int depth, int alpha, int beta, boolean maximizing){
+    private int alphabeta(CXBoard board, int depth, int alpha, int beta, boolean maximizing, HashMap<CXBoard, Integer> scoreMap){
+        // Check if the board position's score is already in the HashMap
+        Integer map_score = scoreMap.get(board); 
+        if (map_score != null) {
+            return map_score;
+        }
+
         if(depth == 0 || board.gameState() != CXGameState.OPEN){
             if(board.gameState() != CXGameState.OPEN){
                 if(AI_player==1 && OPPO_player==2){
@@ -121,7 +130,7 @@ public class AxelBrain implements CXPlayer{
             int max_value = Integer.MIN_VALUE;
             for(int i : board.getAvailableColumns()){
                 board.markColumn(i);
-                int score = alphabeta(board, depth - 1, alpha, beta, false);
+                int score = alphabeta(board, depth - 1, alpha, beta, false, scoreMap);
                 board.unmarkColumn();
 
                 max_value = Math.max(max_value, score);
@@ -135,7 +144,7 @@ public class AxelBrain implements CXPlayer{
             int min_value = Integer.MAX_VALUE;
             for(int i : board.getAvailableColumns()){
                 board.markColumn(i);
-                int score = alphabeta(board.copy(), depth - 1, alpha, beta, true);
+                int score = alphabeta(board, depth - 1, alpha, beta, true, scoreMap);
                 board.unmarkColumn();
 
                 min_value = Math.min(min_value, score);
@@ -148,7 +157,7 @@ public class AxelBrain implements CXPlayer{
         }
     }
 
-
+//versione migliore in AxelBrain2
     private int evaluation(CXBoard board){
         int score = 0;
         int difference = ToWin - 1;
@@ -158,18 +167,35 @@ public class AxelBrain implements CXPlayer{
             for (int j = 0; j < Columns - difference; j++){
                 int ai_consecutive_count = 0;
                 int oppo_consecutive_count = 0;
+                boolean ai_player = true;
+                boolean oppo_player = true;
                 for (int k = 0; k < ToWin; k++){
                     if (board.cellState(i, j+k) == CXCellState.P1) {
+                        oppo_player = false;
+                        ai_player = true;
                         ai_consecutive_count++;
                     } else if (board.cellState(i, j+k) == CXCellState.P2) {
+                        ai_player = false;
+                        oppo_player = true;
                         oppo_consecutive_count++;
                     }
+
+                    if(ai_player==false)
+                        ai_consecutive_count = 0;
+                    else if(oppo_player==false)
+                        oppo_consecutive_count = 0;
                 }
-                if (oppo_consecutive_count == 0) {
-                    score += Math.pow(10, ai_consecutive_count);
-                } else if (ai_consecutive_count == 0) {
-                    score -= Math.pow(10, oppo_consecutive_count);
-                }
+                if(ai_consecutive_count == ToWin)
+                    return Integer.MAX_VALUE;
+                else if(oppo_consecutive_count == ToWin)
+                    return Integer.MIN_VALUE;
+                else{         
+                    if (oppo_consecutive_count == 0) {
+                        score += Math.pow(10, ai_consecutive_count);
+                    } else if (ai_consecutive_count == 0) {
+                        score -= Math.pow(10, oppo_consecutive_count);
+                    }
+                } 
             }
         }
     
@@ -178,18 +204,35 @@ public class AxelBrain implements CXPlayer{
             for (int j = 0; j < Columns; j++){
                 int ai_consecutive_count = 0;
                 int oppo_consecutive_count = 0;
+                boolean ai_player = true;
+                boolean oppo_player = true;
                 for (int k = 0; k < ToWin; k++){
                     if (board.cellState(i+k, j) == CXCellState.P1) {
+                        oppo_player = false;
+                        ai_player = true;
                         ai_consecutive_count++;
                     } else if (board.cellState(i+k, j) == CXCellState.P2) {
+                        ai_player = false;
+                        oppo_player = true;
                         oppo_consecutive_count++;
                     }
+
+                    if(ai_player==false)
+                        ai_consecutive_count = 0;
+                    else if(oppo_player==false)
+                        oppo_consecutive_count = 0;
                 }
-                if (oppo_consecutive_count == 0) {
-                    score += Math.pow(10, ai_consecutive_count);
-                } else if (ai_consecutive_count == 0) {
-                    score -= Math.pow(10, oppo_consecutive_count);
-                }
+                if(ai_consecutive_count == ToWin)
+                    return Integer.MAX_VALUE;
+                else if(oppo_consecutive_count == ToWin)
+                    return Integer.MIN_VALUE;
+                else{         
+                    if (oppo_consecutive_count == 0) {
+                        score += Math.pow(10, ai_consecutive_count);
+                    } else if (ai_consecutive_count == 0) {
+                        score -= Math.pow(10, oppo_consecutive_count);
+                    }
+                } 
             }
         }
     
@@ -198,18 +241,35 @@ public class AxelBrain implements CXPlayer{
             for (int j = 0; j < Columns - difference; j++){
                 int ai_consecutive_count = 0;
                 int oppo_consecutive_count = 0;
+                boolean ai_player = true;
+                boolean oppo_player = true;
                 for (int k = 0; k < ToWin; k++){
                     if (board.cellState(i+k, j+k) == CXCellState.P1) {
+                        oppo_player = false;
+                        ai_player = true;
                         ai_consecutive_count++;
                     } else if (board.cellState(i+k, j+k) == CXCellState.P2) {
+                        ai_player = false;
+                        oppo_player = true;
                         oppo_consecutive_count++;
                     }
+
+                    if(ai_player==false)
+                        ai_consecutive_count = 0;
+                    else if(oppo_player==false)
+                        oppo_consecutive_count = 0;
                 }
-                if (oppo_consecutive_count == 0) {
-                    score += Math.pow(10, ai_consecutive_count);
-                } else if (ai_consecutive_count == 0) {
-                    score -= Math.pow(10, oppo_consecutive_count);
-                }
+                if(ai_consecutive_count == ToWin)
+                    return Integer.MAX_VALUE;
+                else if(oppo_consecutive_count == ToWin)
+                    return Integer.MIN_VALUE;
+                else{         
+                    if (oppo_consecutive_count == 0) {
+                        score += Math.pow(10, ai_consecutive_count);
+                    } else if (ai_consecutive_count == 0) {
+                        score -= Math.pow(10, oppo_consecutive_count);
+                    }
+                } 
             }
         }
     
@@ -218,28 +278,42 @@ public class AxelBrain implements CXPlayer{
             for (int j = 0; j < Columns - difference; j++){
                 int ai_consecutive_count = 0;
                 int oppo_consecutive_count = 0;
+                boolean ai_player = true;
+                boolean oppo_player = true;
                 for (int k = 0; k < ToWin; k++){
                     if (board.cellState(i-k, j+k) == CXCellState.P1) {
+                        oppo_player = false;
+                        ai_player = true;
                         ai_consecutive_count++;
                     } else if (board.cellState(i-k, j+k) == CXCellState.P2) {
+                        ai_player = false;
+                        oppo_player = true;
                         oppo_consecutive_count++;
                     }
+
+                    if(ai_player==false)
+                        ai_consecutive_count = 0;
+                    else if(oppo_player==false)
+                        oppo_consecutive_count = 0;
                 }
-                if (oppo_consecutive_count == 0) {
-                    score += Math.pow(10, ai_consecutive_count);
-                } else if (ai_consecutive_count == 0) {
-                    score -= Math.pow(10, oppo_consecutive_count);
-                }
+                if(ai_consecutive_count == ToWin)
+                    return Integer.MAX_VALUE;
+                else if(oppo_consecutive_count == ToWin)
+                    return Integer.MIN_VALUE;
+                else{         
+                    if (oppo_consecutive_count == 0) {
+                        score += Math.pow(10, ai_consecutive_count);
+                    } else if (ai_consecutive_count == 0) {
+                        score -= Math.pow(10, oppo_consecutive_count);
+                    }
+                } 
             }
         }
-        return (is_first)? score : -score;
+        return (is_first)? score:-score;
     }
 
     private boolean checktime(){
-		if((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0))
-            return true;
-        else
-            return false;
+		return ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0));
 	}
     
     public String playerName(){
