@@ -148,7 +148,7 @@ public class AxelBrain3 implements CXPlayer{
     private int evaluation(CXBoard board){
         int score = 0;
         int player = board.currentPlayer();
-        int difference = ToWin;
+        int difference = ToWin - 1;
 
         if (board.gameState() == CXGameState.WINP1 && is_first) {
             return Integer.MAX_VALUE;

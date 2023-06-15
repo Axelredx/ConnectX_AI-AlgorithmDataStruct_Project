@@ -18,12 +18,10 @@ public class AxelBrain implements CXPlayer{
 	private Integer Columns;
 	private Integer Rows;
 	private Integer ToWin;
-    private final int MAX_DEPTH = 10;
-    private final int MAX_BRANCHING = 7;
+    private final int MAX_DEPTH = Columns*Rows;
+    private final int MAX_BRANCHING = 3;
     private int  TIMEOUT;
     private long START;
-    private Integer AI_player;
-    private Integer OPPO_player;
 
     public AxelBrain(){}
 
@@ -35,13 +33,6 @@ public class AxelBrain implements CXPlayer{
  
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
         is_first=first;
-        if(first==true){
-            AI_player=1;
-            OPPO_player=2;
-        }else{
-            AI_player=2;
-            OPPO_player=1;
-        }
         Columns=N;
         Rows=M;
         ToWin=K;
@@ -165,151 +156,119 @@ public class AxelBrain implements CXPlayer{
         // horizontal check
         for (int i = 0; i < Rows; i++){
             for (int j = 0; j < Columns - difference; j++){
+                int free_cells = 0;
                 int ai_consecutive_count = 0;
                 int oppo_consecutive_count = 0;
-                boolean ai_player = true;
-                boolean oppo_player = true;
-                for (int k = 0; k < ToWin; k++){
-                    if (board.cellState(i, j+k) == CXCellState.P1) {
-                        oppo_player = false;
-                        ai_player = true;
-                        ai_consecutive_count++;
-                    } else if (board.cellState(i, j+k) == CXCellState.P2) {
-                        ai_player = false;
-                        oppo_player = true;
-                        oppo_consecutive_count++;
+                boolean ai_consecutive_piece = true;
+                boolean oppo_consecutive_piece = true;
+                int ai_true_consecutive_piece = 0;
+                int oppo_true_consecutive_piece = 0; 
+                for(int k = 0; k < ToWin; k++){
+                    if(is_first){
+                        if(board.cellState(i, j+k) == CXCellState.P1){
+                            oppo_consecutive_piece=false;
+                            ai_consecutive_count+=1;
+                            if(ai_consecutive_piece==true)
+                                ai_true_consecutive_piece+=1;
+                        }
+                        else if(board.cellState(i, j+k) == CXCellState.FREE)
+                            free_cells+=1;
+                        else{
+                            ai_consecutive_piece=false;
+                            oppo_consecutive_count+=1;
+                            if(oppo_consecutive_piece==true)
+                                oppo_true_consecutive_piece+=1;
+                        }
+                    }else{
+                        if(board.cellState(i, j+k) == CXCellState.P2){
+                            oppo_consecutive_piece=false;
+                            ai_consecutive_count+=1;
+                            if(ai_consecutive_piece==true)
+                                ai_true_consecutive_piece+=1;
+                        }
+                        else if(board.cellState(i, j+k) == CXCellState.FREE)
+                            free_cells+=1;
+                        else{
+                            ai_consecutive_piece=false;
+                            oppo_consecutive_count+=1;
+                            if(oppo_consecutive_piece==true)
+                                oppo_true_consecutive_piece+=1;
+                        }
                     }
-
-                    if(ai_player==false)
-                        ai_consecutive_count = 0;
-                    else if(oppo_player==false)
-                        oppo_consecutive_count = 0;
+                    score+=counting_consecutive_count(ToWin, ai_consecutive_count, free_cells, oppo_consecutive_count, ai_consecutive_piece,oppo_consecutive_piece,ai_true_consecutive_piece,oppo_true_consecutive_piece);
                 }
-                if(ai_consecutive_count == ToWin)
-                    return Integer.MAX_VALUE;
-                else if(oppo_consecutive_count == ToWin)
-                    return Integer.MIN_VALUE;
-                else{         
-                    if (oppo_consecutive_count == 0) {
-                        score += Math.pow(10, ai_consecutive_count);
-                    } else if (ai_consecutive_count == 0) {
-                        score -= Math.pow(10, oppo_consecutive_count);
-                    }
-                } 
             }
         }
     
         // vertical check
         for (int i = 0; i < Rows - difference; i++){
             for (int j = 0; j < Columns; j++){
-                int ai_consecutive_count = 0;
-                int oppo_consecutive_count = 0;
-                boolean ai_player = true;
-                boolean oppo_player = true;
-                for (int k = 0; k < ToWin; k++){
-                    if (board.cellState(i+k, j) == CXCellState.P1) {
-                        oppo_player = false;
-                        ai_player = true;
-                        ai_consecutive_count++;
-                    } else if (board.cellState(i+k, j) == CXCellState.P2) {
-                        ai_player = false;
-                        oppo_player = true;
-                        oppo_consecutive_count++;
-                    }
 
-                    if(ai_player==false)
-                        ai_consecutive_count = 0;
-                    else if(oppo_player==false)
-                        oppo_consecutive_count = 0;
-                }
-                if(ai_consecutive_count == ToWin)
-                    return Integer.MAX_VALUE;
-                else if(oppo_consecutive_count == ToWin)
-                    return Integer.MIN_VALUE;
-                else{         
-                    if (oppo_consecutive_count == 0) {
-                        score += Math.pow(10, ai_consecutive_count);
-                    } else if (ai_consecutive_count == 0) {
-                        score -= Math.pow(10, oppo_consecutive_count);
-                    }
-                } 
             }
         }
     
         // diagonal check (top-left to bottom-right)
         for (int i = 0; i < Rows - difference; i++){
             for (int j = 0; j < Columns - difference; j++){
-                int ai_consecutive_count = 0;
-                int oppo_consecutive_count = 0;
-                boolean ai_player = true;
-                boolean oppo_player = true;
-                for (int k = 0; k < ToWin; k++){
-                    if (board.cellState(i+k, j+k) == CXCellState.P1) {
-                        oppo_player = false;
-                        ai_player = true;
-                        ai_consecutive_count++;
-                    } else if (board.cellState(i+k, j+k) == CXCellState.P2) {
-                        ai_player = false;
-                        oppo_player = true;
-                        oppo_consecutive_count++;
-                    }
 
-                    if(ai_player==false)
-                        ai_consecutive_count = 0;
-                    else if(oppo_player==false)
-                        oppo_consecutive_count = 0;
-                }
-                if(ai_consecutive_count == ToWin)
-                    return Integer.MAX_VALUE;
-                else if(oppo_consecutive_count == ToWin)
-                    return Integer.MIN_VALUE;
-                else{         
-                    if (oppo_consecutive_count == 0) {
-                        score += Math.pow(10, ai_consecutive_count);
-                    } else if (ai_consecutive_count == 0) {
-                        score -= Math.pow(10, oppo_consecutive_count);
-                    }
-                } 
             }
         }
     
         // diagonal check (bottom-left to top-right)
         for (int i = difference; i < Rows; i++){
             for (int j = 0; j < Columns - difference; j++){
-                int ai_consecutive_count = 0;
-                int oppo_consecutive_count = 0;
-                boolean ai_player = true;
-                boolean oppo_player = true;
-                for (int k = 0; k < ToWin; k++){
-                    if (board.cellState(i-k, j+k) == CXCellState.P1) {
-                        oppo_player = false;
-                        ai_player = true;
-                        ai_consecutive_count++;
-                    } else if (board.cellState(i-k, j+k) == CXCellState.P2) {
-                        ai_player = false;
-                        oppo_player = true;
-                        oppo_consecutive_count++;
-                    }
 
-                    if(ai_player==false)
-                        ai_consecutive_count = 0;
-                    else if(oppo_player==false)
-                        oppo_consecutive_count = 0;
-                }
-                if(ai_consecutive_count == ToWin)
-                    return Integer.MAX_VALUE;
-                else if(oppo_consecutive_count == ToWin)
-                    return Integer.MIN_VALUE;
-                else{         
-                    if (oppo_consecutive_count == 0) {
-                        score += Math.pow(10, ai_consecutive_count);
-                    } else if (ai_consecutive_count == 0) {
-                        score -= Math.pow(10, oppo_consecutive_count);
-                    }
-                } 
             }
         }
-        return (is_first)? score:-score;
+
+        return  score;
+    }
+
+    private int counting_consecutive_count(int ToWin, int count_ai, int count_free, int count_oppo, boolean true_ai, boolean true_oppo, int true_count_ai, int true_count_oppo){
+        int score=0;
+        if(ToWin==4){
+            if(count_free==4)
+                score=5;
+            else if(count_free==1){
+                if(true_ai==true){
+                    score=100;
+                }else{
+                    if(true_count_ai==1 && true_count_oppo==2)
+                        score=-10;
+                    else if(true_count_ai==2 && true_count_oppo==1)
+                        score=10;
+                }
+            }else if(count_free==2){
+                if(true_ai==true){
+                    score=50;
+                }else{
+                    if(true_count_ai==1 && true_count_oppo==1){
+                        score=2;
+                    }else if(true_count_ai==0 && true_count_oppo==2){
+                        score=-50;
+                    }
+                }
+            }else if(count_free==1){
+                
+
+            }else if(count_free==0){
+                if(true_count_ai==4)
+                    score=Integer.MAX_VALUE;
+                else if(true_count_ai==3 && true_count_oppo==1)
+                    score=29;
+                else if(true_count_ai==2 && true_count_oppo==2)
+                    score=10;
+                else if(true_count_ai==1 && true_count_oppo==3)
+                    score=-29;
+                else if(true_count_oppo==4)
+                    score=Integer.MIN_VALUE;
+            }
+            
+        }else{
+            
+        }
+
+        return score;
     }
 
     private boolean checktime(){

@@ -169,7 +169,7 @@ public class AxelBrain2 implements CXPlayer{
 
     private int evaluation(CXBoard board){
         int score = 0;
-        int difference = ToWin ;
+        int difference = ToWin - 1;
     
         // horizontal check
         for (int i = 0; i < Rows; i++){
