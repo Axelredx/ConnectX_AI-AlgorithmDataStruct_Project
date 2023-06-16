@@ -9,273 +9,284 @@ import java.util.Random;
 import java.util.TreeSet;
 import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
-import javax.lang.model.util.ElementScanner6;
 import java.lang.Math;
 import java.util.HashMap;
 
-public class AxelBrain implements CXPlayer{
-    private  Boolean is_first;
-	private Integer Columns;
-	private Integer Rows;
-	private Integer ToWin;
-    private final int MAX_DEPTH = Columns*Rows;
-    private final int MAX_BRANCHING = 3;
-    private int  TIMEOUT;
+public class AxelBrain implements CXPlayer {
+    private Boolean is_first;
+    private Integer Columns;
+    private Integer Rows;
+    private Integer ToWin;
+    private int MAX_DEPTH = 5; // if x > 5 excedeed time limit
+    private int MAX_BRANCHING = 6; // if x > 6 excedeed time limit
+    private int TIMEOUT;
     private long START;
 
-    public AxelBrain(){}
+    public AxelBrain() {
+    }
 
-	// M = numero di righe nella matrice
-	// N = numero di colonne nella matrice
-	// X = numero di gettoni da allineare
-	// first = true se è il primo a giocare
-	// timeout_in_secs = numero massimo di secondi per una mossa
- 
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
-        is_first=first;
-        Columns=N;
-        Rows=M;
-        ToWin=K;
+        is_first = first;
+        Columns = N;
+        Rows = M;
+        ToWin = K;
         TIMEOUT = timeout_in_secs;
     }
 
-    public int selectColumn(CXBoard B){
+    public int selectColumn(CXBoard B) {
         START = System.currentTimeMillis(); // Save starting time
-        return play(B);
-    }    
-
-    public int play(CXBoard board){
-        Integer[] col_avaible = board.getAvailableColumns();
-        int best_move = col_avaible[col_avaible.length/2];
-        int best_score = Integer.MIN_VALUE;
-
-        for(int i=0; i < col_avaible.length; i++){
-            int col = col_avaible[i];
-            board.markColumn(col);
-            int score = iterativeDeepening(board);
-            board.unmarkColumn();
-
-            if(score > best_score){
-                best_score = score;
-                best_move = col;
+        Integer[] col_avaible = B.getAvailableColumns();
+        int bestColumn = col_avaible[col_avaible.length / 2];
+        int bestScore = Integer.MIN_VALUE;
+        try {
+            Integer[] availableColumns = B.getAvailableColumns();
+            for (int column : availableColumns) {
+                B.markColumn(column);
+                int score = findBestMove(B);
+                B.unmarkColumn();
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestColumn = column;
+                }
             }
-
+        } catch (TimeoutException e) {
+            System.out.println("Timeout! Returning the best column found so far. :(");
         }
-        return best_move;
+        return bestColumn;
     }
 
-    public int iterativeDeepening(CXBoard board) {
-        int alpha = Integer.MAX_VALUE;
-        int beta = Integer.MIN_VALUE;
-        int best_score = Integer.MIN_VALUE;
-        // HashMap to store board positions and scores (this type of hashtable can store null by default)
-        HashMap<CXBoard, Integer> scoreMap = new HashMap<>();
-    
-        // Iterate through max_depth (higher depth, higher is the number visited in width)
-        for (int depth = 0; depth < MAX_DEPTH; depth++) {
-            //check time every iteration
-            if(checktime())
+    public int findBestMove(CXBoard board) throws TimeoutException {
+        int bestScore = Integer.MIN_VALUE;
+
+        for (int depth = 1; depth <= MAX_DEPTH; depth++) {
+            checktime();
+            int score = iterativeDeepening(board, depth, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            if (score > bestScore) {
+                bestScore = score;
+            }
+        }
+
+        return bestScore;
+    }
+
+    public int iterativeDeepening(CXBoard board, int depth, int alpha, int beta) throws TimeoutException {
+        HashMap<CXBoard, Integer> visited = new HashMap<>();
+
+        int bestScore = Integer.MIN_VALUE;
+
+        while (depth!=MAX_BRANCHING) {
+            checktime();
+            int score = alphaBetaWithMemory(board, depth, alpha, beta, true, visited);
+            if (score == Integer.MAX_VALUE || score == Integer.MIN_VALUE || score == 0) {
+                // Found a winning move, stop searching
+                return score;
+            }
+
+            bestScore = score;
+            depth++;
+
+            if (bestScore >= beta) {
+                // Prune remaining branches
                 break;
-            // Evaluate the move using alpha-beta pruning with a branching depth
-            int score = alphabeta(board,MAX_BRANCHING,alpha,beta,false, scoreMap);    
-            // If the score is better than the best score so far, update best score
-            if (score > best_score) {
-                best_score = score;
             }
         }
-    
-        return best_score;
+
+        return bestScore;
     }
 
-    private int alphabeta(CXBoard board, int depth, int alpha, int beta, boolean maximizing, HashMap<CXBoard, Integer> scoreMap){
-        // Check if the board position's score is already in the HashMap
-        Integer map_score = scoreMap.get(board); 
-        if (map_score != null) {
-            return map_score;
+    private int alphaBetaWithMemory(CXBoard board, int depth, int alpha, int beta, boolean maximizingPlayer,
+            HashMap<CXBoard, Integer> visited) throws TimeoutException {
+        if (depth == 0 || board.gameState() != CXGameState.OPEN) {
+            return evaluation(board);
         }
 
-        if(depth == 0 || board.gameState() != CXGameState.OPEN){
-            if(board.gameState() != CXGameState.OPEN){
-                if(is_first){
-                    if(board.gameState()==CXGameState.WINP1)
-                        return Integer.MAX_VALUE;
-                    else if(board.gameState()==CXGameState.WINP2)
-                        return Integer.MIN_VALUE;
-                    else if(board.gameState()==CXGameState.DRAW)
-                        //draw
-                        return 0;
-                }else{
-                    if(board.gameState()==CXGameState.WINP2)
-                        return Integer.MAX_VALUE;
-                    else if(board.gameState()==CXGameState.WINP1)
-                        return Integer.MIN_VALUE;
-                    else if(board.gameState()==CXGameState.DRAW)
-                        //draw
-                        return 0;                    
+        if (maximizingPlayer) {
+            int maxScore = Integer.MIN_VALUE;
+            for (int col : board.getAvailableColumns()) {
+                checktime();
+                board.markColumn(col);
+                int score;
+                //check presence of score of current board in hashMap
+                //else insert it
+                if (visited.containsKey(board)) {
+                    score = visited.get(board);
+                } else {
+                    score = alphaBetaWithMemory(board, depth - 1, alpha, beta, false, visited);
+                    visited.put(board.copy(), score);
                 }
-            }else
-                return evaluation(board);
-        }
-
-        if(maximizing){
-            int max_value = Integer.MIN_VALUE;
-            for(int i : board.getAvailableColumns()){
-                board.markColumn(i);
-                int score = alphabeta(board, depth - 1, alpha, beta, false, scoreMap);
                 board.unmarkColumn();
 
-                max_value = Math.max(max_value, score);
-                alpha = Math.max(alpha, max_value);
-                if(alpha >= beta)
+                maxScore = Math.max(maxScore, score);
+                alpha = Math.max(alpha, maxScore);
+                if (alpha >= beta) {
                     break;
+                }
             }
-
-            return max_value;
-        }else{
-            int min_value = Integer.MAX_VALUE;
-            for(int i : board.getAvailableColumns()){
-                board.markColumn(i);
-                int score = alphabeta(board, depth - 1, alpha, beta, true, scoreMap);
+            return maxScore;
+        } else {
+            int minScore = Integer.MAX_VALUE;
+            for (int col : board.getAvailableColumns()) {
+                checktime();
+                board.markColumn(col);
+                int score;
+                //check presence of score of current board in hashMap
+                //else insert it
+                if (visited.containsKey(board)) {
+                    score = visited.get(board);
+                } else {
+                    score = alphaBetaWithMemory(board, depth - 1, alpha, beta, true, visited);
+                    visited.put(board.copy(), score);
+                }
                 board.unmarkColumn();
 
-                min_value = Math.min(min_value, score);
-                beta = Math.min(beta, min_value);
-                if(alpha >= beta)
+                minScore = Math.min(minScore, score);
+                beta = Math.min(beta, minScore);
+                if (alpha >= beta) {
                     break;
+                }
             }
-
-            return min_value;            
+            return minScore;
         }
     }
 
-//versione migliore in AxelBrain2
-    private int evaluation(CXBoard board){
+    private int evaluation(CXBoard board) {
         int score = 0;
-        int difference = ToWin - 1;
-    
-        // horizontal check
-        for (int i = 0; i < Rows; i++){
-            for (int j = 0; j < Columns - difference; j++){
-                int free_cells = 0;
-                int ai_consecutive_count = 0;
-                int oppo_consecutive_count = 0;
-                boolean ai_consecutive_piece = true;
-                boolean oppo_consecutive_piece = true;
-                int ai_true_consecutive_piece = 0;
-                int oppo_true_consecutive_piece = 0; 
-                for(int k = 0; k < ToWin; k++){
-                    if(is_first){
-                        if(board.cellState(i, j+k) == CXCellState.P1){
-                            oppo_consecutive_piece=false;
-                            ai_consecutive_count+=1;
-                            if(ai_consecutive_piece==true)
-                                ai_true_consecutive_piece+=1;
-                        }
-                        else if(board.cellState(i, j+k) == CXCellState.FREE)
-                            free_cells+=1;
-                        else{
-                            ai_consecutive_piece=false;
-                            oppo_consecutive_count+=1;
-                            if(oppo_consecutive_piece==true)
-                                oppo_true_consecutive_piece+=1;
-                        }
-                    }else{
-                        if(board.cellState(i, j+k) == CXCellState.P2){
-                            oppo_consecutive_piece=false;
-                            ai_consecutive_count+=1;
-                            if(ai_consecutive_piece==true)
-                                ai_true_consecutive_piece+=1;
-                        }
-                        else if(board.cellState(i, j+k) == CXCellState.FREE)
-                            free_cells+=1;
-                        else{
-                            ai_consecutive_piece=false;
-                            oppo_consecutive_count+=1;
-                            if(oppo_consecutive_piece==true)
-                                oppo_true_consecutive_piece+=1;
-                        }
-                    }
-                    score+=counting_consecutive_count(ToWin, ai_consecutive_count, free_cells, oppo_consecutive_count, ai_consecutive_piece,oppo_consecutive_piece,ai_true_consecutive_piece,oppo_true_consecutive_piece);
-                }
-            }
-        }
-    
-        // vertical check
-        for (int i = 0; i < Rows - difference; i++){
-            for (int j = 0; j < Columns; j++){
+        int countToWin = ToWin;
+        int rows = Rows;
+        int cols = Columns;
 
-            }
-        }
-    
-        // diagonal check (top-left to bottom-right)
-        for (int i = 0; i < Rows - difference; i++){
-            for (int j = 0; j < Columns - difference; j++){
+        // Check horizontal lines
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j <= cols - countToWin; j++) {
+                int playerCount = 0;
+                int opponentCount = 0;
+                int emptyCount = 0;
 
-            }
-        }
-    
-        // diagonal check (bottom-left to top-right)
-        for (int i = difference; i < Rows; i++){
-            for (int j = 0; j < Columns - difference; j++){
-
-            }
-        }
-
-        return  score;
-    }
-
-    private int counting_consecutive_count(int ToWin, int count_ai, int count_free, int count_oppo, boolean true_ai, boolean true_oppo, int true_count_ai, int true_count_oppo){
-        int score=0;
-        if(ToWin==4){
-            if(count_free==4)
-                score=5;
-            else if(count_free==1){
-                if(true_ai==true){
-                    score=100;
-                }else{
-                    if(true_count_ai==1 && true_count_oppo==2)
-                        score=-10;
-                    else if(true_count_ai==2 && true_count_oppo==1)
-                        score=10;
-                }
-            }else if(count_free==2){
-                if(true_ai==true){
-                    score=50;
-                }else{
-                    if(true_count_ai==1 && true_count_oppo==1){
-                        score=2;
-                    }else if(true_count_ai==0 && true_count_oppo==2){
-                        score=-50;
+                for (int k = 0; k < countToWin; k++) {
+                    CXCellState cellState = board.cellState(i, j + k);
+                    if (cellState == CXCellState.FREE) {
+                        emptyCount++;
+                    } else if ((cellState == CXCellState.P1 && is_first)
+                            || (cellState == CXCellState.P2 && !is_first)) {
+                        playerCount++;
+                    } else if ((cellState == CXCellState.P1 && !is_first)
+                            || (cellState == CXCellState.P2 && is_first)) {
+                        opponentCount++;
                     }
                 }
-            }else if(count_free==1){
-                
 
-            }else if(count_free==0){
-                if(true_count_ai==4)
-                    score=Integer.MAX_VALUE;
-                else if(true_count_ai==3 && true_count_oppo==1)
-                    score=29;
-                else if(true_count_ai==2 && true_count_oppo==2)
-                    score=10;
-                else if(true_count_ai==1 && true_count_oppo==3)
-                    score=-29;
-                else if(true_count_oppo==4)
-                    score=Integer.MIN_VALUE;
+                if (playerCount > 0 && emptyCount > 0) {
+                    score += Math.pow(10, playerCount);
+                } else if (opponentCount > 0 && emptyCount > 0) {
+                    score -= Math.pow(10, opponentCount);
+                }
             }
-            
-        }else{
-            
         }
+
+        // Check vertical lines
+        for (int j = 0; j < cols; j++) {
+            for (int i = 0; i <= rows - countToWin; i++) {
+                int playerCount = 0;
+                int opponentCount = 0;
+                int emptyCount = 0;
+
+                for (int k = 0; k < countToWin; k++) {
+                    CXCellState cellState = board.cellState(i + k, j);
+                    if (cellState == CXCellState.FREE) {
+                        emptyCount++;
+                    } else if ((cellState == CXCellState.P1 && is_first)
+                            || (cellState == CXCellState.P2 && !is_first)) {
+                        playerCount++;
+                    } else if ((cellState == CXCellState.P1 && !is_first)
+                            || (cellState == CXCellState.P2 && is_first)) {
+                        opponentCount++;
+                    }
+                }
+
+                if (playerCount > 0 && emptyCount > 0) {
+                    score += Math.pow(10, playerCount);
+                } else if (opponentCount > 0 && emptyCount > 0) {
+                    score -= Math.pow(10, opponentCount);
+                }
+            }
+        }
+
+        // Check diagonal lines (top-left to bottom-right)
+        for (int i = 0; i <= rows - countToWin; i++) {
+            for (int j = 0; j <= cols - countToWin; j++) {
+                int playerCount = 0;
+                int opponentCount = 0;
+                int emptyCount = 0;
+
+                for (int k = 0; k < countToWin; k++) {
+                    CXCellState cellState = board.cellState(i + k, j + k);
+                    if (cellState == CXCellState.FREE) {
+                        emptyCount++;
+                    } else if ((cellState == CXCellState.P1 && is_first)
+                            || (cellState == CXCellState.P2 && !is_first)) {
+                        playerCount++;
+                    } else if ((cellState == CXCellState.P1 && !is_first)
+                            || (cellState == CXCellState.P2 && is_first)) {
+                        opponentCount++;
+                    }
+                }
+
+                if (playerCount > 0 && emptyCount > 0) {
+                    score += Math.pow(10, playerCount);
+                } else if (opponentCount > 0 && emptyCount > 0) {
+                    score -= Math.pow(10, opponentCount);
+                }
+            }
+        }
+
+        // Check diagonal lines (bottom-left to top-right)
+        for (int i = countToWin - 1; i < rows; i++) {
+            for (int j = 0; j <= cols - countToWin; j++) {
+                int playerCount = 0;
+                int opponentCount = 0;
+                int emptyCount = 0;
+
+                for (int k = 0; k < countToWin; k++) {
+                    CXCellState cellState = board.cellState(i - k, j + k);
+                    if (cellState == CXCellState.FREE) {
+                        emptyCount++;
+                    } else if ((cellState == CXCellState.P1 && is_first)
+                            || (cellState == CXCellState.P2 && !is_first)) {
+                        playerCount++;
+                    } else if ((cellState == CXCellState.P1 && !is_first)
+                            || (cellState == CXCellState.P2 && is_first)) {
+                        opponentCount++;
+                    }
+                }
+
+                if (playerCount > 0 && emptyCount > 0) {
+                    score += Math.pow(10, playerCount);
+                } else if (opponentCount > 0 && emptyCount > 0) {
+                    score -= Math.pow(10, opponentCount);
+                }
+            }
+        }
+
+        if ((board.gameState() == CXGameState.WINP1 && is_first)
+                || (board.gameState() == CXGameState.WINP2 && !is_first))
+            score = Integer.MAX_VALUE; //player winning
+        else if ((board.gameState() == CXGameState.WINP1 && !is_first)
+                || (board.gameState() == CXGameState.WINP2 && is_first))
+            score = Integer.MIN_VALUE; //player losing
+        else if (board.gameState() == CXGameState.DRAW)
+            score = 0; //draw
 
         return score;
     }
 
-    private boolean checktime(){
-		return ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0));
-	}
-    
+    private void checktime() throws TimeoutException {
+        long elapsed = System.currentTimeMillis() - START;
+        if (elapsed >= TIMEOUT * 1000) {
+            throw new TimeoutException();
+        }
+    }
+
     public String playerName(){
         return "AxelBrain";
-    }
+    }    
 }
