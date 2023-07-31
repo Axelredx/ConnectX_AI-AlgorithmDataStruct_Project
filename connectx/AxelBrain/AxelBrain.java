@@ -11,6 +11,9 @@ import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
 import java.lang.Math;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.lang.instrument.Instrumentation;
 
 public class AxelBrain implements CXPlayer {
     private Boolean is_first;
@@ -49,10 +52,11 @@ public class AxelBrain implements CXPlayer {
                     bestColumn = column;
                 }
             }
+            return bestColumn;
         } catch (TimeoutException e) {
-            System.out.println("Timeout! Returning the best column found so far. :(");
+            //System.out.println("Timeout! Returning the best column found so far. :(");
+            return bestColumn;
         }
-        return bestColumn;
     }
 
     public int findBestMove(CXBoard board) throws TimeoutException {
@@ -70,7 +74,7 @@ public class AxelBrain implements CXPlayer {
     }
 
     public int iterativeDeepening(CXBoard board, int depth, int alpha, int beta) throws TimeoutException {
-        HashMap<CXBoard, Integer> visited = new HashMap<>();
+        LinkedHashMap<CXBoard, Integer> visited = new LinkedHashMap<>();
 
         int bestScore = Integer.MIN_VALUE;
 
@@ -81,8 +85,9 @@ public class AxelBrain implements CXPlayer {
                 // Found a winning move, stop searching
                 return score;
             }
-
+            //System.out.println(visited.size());
             bestScore = score;
+            //depth increase each time
             depth++;
 
             if (bestScore >= beta) {
@@ -95,7 +100,7 @@ public class AxelBrain implements CXPlayer {
     }
 
     private int alphaBetaWithMemory(CXBoard board, int depth, int alpha, int beta, boolean maximizingPlayer,
-            HashMap<CXBoard, Integer> visited) throws TimeoutException {
+            LinkedHashMap<CXBoard, Integer> visited) throws TimeoutException {
         if (depth == 0 || board.gameState() != CXGameState.OPEN) {
             return evaluation(board);
         }
@@ -110,9 +115,19 @@ public class AxelBrain implements CXPlayer {
                 //else insert it
                 if (visited.containsKey(board)) {
                     score = visited.get(board);
+                    //remove the kay from hashmap because the same board won't
+                    //represent
+                    visited.remove(board);
                 } else {
                     score = alphaBetaWithMemory(board, depth - 1, alpha, beta, false, visited);
                     visited.put(board.copy(), score);
+                    // Check if the cache size exceeds the limit, and if so, remove the least recently accessed element
+                    if (visited.size() * 16 > 2 * 1024 * 1024 * 1024) { // Assuming each entry takes 16 bytes of memory
+                        for (Map.Entry<CXBoard, Integer> entry : visited.entrySet()) {
+                            visited.remove(entry.getKey());
+                            break;
+                        }
+                    }
                 }
                 board.unmarkColumn();
 
@@ -133,9 +148,19 @@ public class AxelBrain implements CXPlayer {
                 //else insert it
                 if (visited.containsKey(board)) {
                     score = visited.get(board);
+                    //remove the kay from hashmap because the same board won't
+                    //represent
+                    visited.remove(board);
                 } else {
                     score = alphaBetaWithMemory(board, depth - 1, alpha, beta, true, visited);
                     visited.put(board.copy(), score);
+                    // Check if the cache size exceeds the limit, and if so, remove the least recently accessed element
+                    if (visited.size() * 16 > 2 * 1024 * 1024 * 1024) { // Assuming each entry takes 16 bytes of memory
+                        for (Map.Entry<CXBoard, Integer> entry : visited.entrySet()) {
+                            visited.remove(entry.getKey());
+                            break;
+                        }
+                    }
                 }
                 board.unmarkColumn();
 
