@@ -280,11 +280,9 @@ public class AxelBrain implements CXPlayer {
     }
 
     private void checktime() throws TimeoutException {
-        long elapsed = System.currentTimeMillis() - START;
-        if (elapsed >= TIMEOUT * 1000) {
-            throw new TimeoutException();
-        }
-    }
+		if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0))
+			throw new TimeoutException();
+	}
 
     public String playerName(){
         return "AxelBrain";
