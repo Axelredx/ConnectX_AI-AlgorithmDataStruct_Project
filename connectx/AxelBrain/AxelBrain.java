@@ -5,9 +5,7 @@ import connectx.CXBoard;
 import connectx.CXGameState;
 import connectx.CXCell;
 import connectx.CXCellState;
-import java.util.Random;
-import java.util.TreeSet;
-import java.util.Arrays;
+
 import java.util.concurrent.TimeoutException;
 import java.lang.Math;
 import java.util.HashMap;
@@ -16,7 +14,7 @@ import java.util.Map;
 import java.lang.instrument.Instrumentation;
 
 public class AxelBrain implements CXPlayer {
-    private Boolean is_first;
+    private Boolean isFirst;
     private Integer Columns;
     private Integer Rows;
     private Integer ToWin;
@@ -24,12 +22,14 @@ public class AxelBrain implements CXPlayer {
     private int MAX_BRANCHING = 6; // if x > 6 excedeed time limit
     private int TIMEOUT;
     private long START;
+    private int MAX_CACHE_SIZE = 2 * 1024 * 1024 * 1024; // 2gb of memory
+    private static final int BYTES_PER_ENTRY = 16; //assuming general object costs 16 bytes
 
     public AxelBrain() {
     }
 
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
-        is_first = first;
+        isFirst = first;
         Columns = N;
         Rows = M;
         ToWin = K;
@@ -38,25 +38,28 @@ public class AxelBrain implements CXPlayer {
 
     public int selectColumn(CXBoard B) {
         START = System.currentTimeMillis(); // Save starting time
-        Integer[] col_avaible = B.getAvailableColumns();
-        int bestColumn = col_avaible[col_avaible.length / 2];
+        Integer[] availableColumns = B.getAvailableColumns();
+        int bestColumn = availableColumns[availableColumns.length / 2];
         int bestScore = Integer.MIN_VALUE;
-        try {
-            Integer[] availableColumns = B.getAvailableColumns();
-            for (int column : availableColumns) {
+
+        for (int column : availableColumns) {
+            int score;
+            try {
+                checktime();
                 B.markColumn(column);
-                int score = findBestMove(B);
+                score = findBestMove(B);
                 B.unmarkColumn();
+            
+            } catch (TimeoutException e) {
+                System.out.println("Timeout! Returning the best column found so far. :(");
+                return bestColumn;
+            }
                 if (score > bestScore) {
                     bestScore = score;
                     bestColumn = column;
                 }
-            }
-            return bestColumn;
-        } catch (TimeoutException e) {
-            //System.out.println("Timeout! Returning the best column found so far. :(");
-            return bestColumn;
         }
+        return  bestColumn;
     }
 
     public int findBestMove(CXBoard board) throws TimeoutException {
@@ -115,14 +118,15 @@ public class AxelBrain implements CXPlayer {
                 //else insert it
                 if (visited.containsKey(board)) {
                     score = visited.get(board);
-                    //remove the kay from hashmap because the same board won't
-                    //represent
-                    visited.remove(board);
+                    //remove the key from hashmap because the same board won't
+                    //represent in near future
+                    //visited.remove(board);
                 } else {
                     score = alphaBetaWithMemory(board, depth - 1, alpha, beta, false, visited);
                     visited.put(board.copy(), score);
-                    // Check if the cache size exceeds the limit, and if so, remove the least recently accessed element
-                    if (visited.size() * 16 > 2 * 1024 * 1024 * 1024) { // Assuming each entry takes 16 bytes of memory
+                    //Check if the cache size exceeds the limit, and if so, 
+                    //remove the least recently accessed element
+                    if (visited.size() * BYTES_PER_ENTRY > MAX_CACHE_SIZE) { 
                         for (Map.Entry<CXBoard, Integer> entry : visited.entrySet()) {
                             visited.remove(entry.getKey());
                             break;
@@ -149,13 +153,14 @@ public class AxelBrain implements CXPlayer {
                 if (visited.containsKey(board)) {
                     score = visited.get(board);
                     //remove the kay from hashmap because the same board won't
-                    //represent
-                    visited.remove(board);
+                    //represent in near future
+                    //visited.remove(board);
                 } else {
                     score = alphaBetaWithMemory(board, depth - 1, alpha, beta, true, visited);
                     visited.put(board.copy(), score);
-                    // Check if the cache size exceeds the limit, and if so, remove the least recently accessed element
-                    if (visited.size() * 16 > 2 * 1024 * 1024 * 1024) { // Assuming each entry takes 16 bytes of memory
+                    //Check if the cache size exceeds the limit, and if so, 
+                    //remove the least recently accessed element
+                    if (visited.size() * BYTES_PER_ENTRY > MAX_CACHE_SIZE) { 
                         for (Map.Entry<CXBoard, Integer> entry : visited.entrySet()) {
                             visited.remove(entry.getKey());
                             break;
@@ -191,11 +196,11 @@ public class AxelBrain implements CXPlayer {
                     CXCellState cellState = board.cellState(i, j + k);
                     if (cellState == CXCellState.FREE) {
                         emptyCount++;
-                    } else if ((cellState == CXCellState.P1 && is_first)
-                            || (cellState == CXCellState.P2 && !is_first)) {
+                    } else if ((cellState == CXCellState.P1 && isFirst)
+                            || (cellState == CXCellState.P2 && !isFirst)) {
                         playerCount++;
-                    } else if ((cellState == CXCellState.P1 && !is_first)
-                            || (cellState == CXCellState.P2 && is_first)) {
+                    } else if ((cellState == CXCellState.P1 && !isFirst)
+                            || (cellState == CXCellState.P2 && isFirst)) {
                         opponentCount++;
                     }
                 }
@@ -219,11 +224,11 @@ public class AxelBrain implements CXPlayer {
                     CXCellState cellState = board.cellState(i + k, j);
                     if (cellState == CXCellState.FREE) {
                         emptyCount++;
-                    } else if ((cellState == CXCellState.P1 && is_first)
-                            || (cellState == CXCellState.P2 && !is_first)) {
+                    } else if ((cellState == CXCellState.P1 && isFirst)
+                            || (cellState == CXCellState.P2 && !isFirst)) {
                         playerCount++;
-                    } else if ((cellState == CXCellState.P1 && !is_first)
-                            || (cellState == CXCellState.P2 && is_first)) {
+                    } else if ((cellState == CXCellState.P1 && !isFirst)
+                            || (cellState == CXCellState.P2 && isFirst)) {
                         opponentCount++;
                     }
                 }
@@ -247,11 +252,11 @@ public class AxelBrain implements CXPlayer {
                     CXCellState cellState = board.cellState(i + k, j + k);
                     if (cellState == CXCellState.FREE) {
                         emptyCount++;
-                    } else if ((cellState == CXCellState.P1 && is_first)
-                            || (cellState == CXCellState.P2 && !is_first)) {
+                    } else if ((cellState == CXCellState.P1 && isFirst)
+                            || (cellState == CXCellState.P2 && !isFirst)) {
                         playerCount++;
-                    } else if ((cellState == CXCellState.P1 && !is_first)
-                            || (cellState == CXCellState.P2 && is_first)) {
+                    } else if ((cellState == CXCellState.P1 && !isFirst)
+                            || (cellState == CXCellState.P2 && isFirst)) {
                         opponentCount++;
                     }
                 }
@@ -275,11 +280,11 @@ public class AxelBrain implements CXPlayer {
                     CXCellState cellState = board.cellState(i - k, j + k);
                     if (cellState == CXCellState.FREE) {
                         emptyCount++;
-                    } else if ((cellState == CXCellState.P1 && is_first)
-                            || (cellState == CXCellState.P2 && !is_first)) {
+                    } else if ((cellState == CXCellState.P1 && isFirst)
+                            || (cellState == CXCellState.P2 && !isFirst)) {
                         playerCount++;
-                    } else if ((cellState == CXCellState.P1 && !is_first)
-                            || (cellState == CXCellState.P2 && is_first)) {
+                    } else if ((cellState == CXCellState.P1 && !isFirst)
+                            || (cellState == CXCellState.P2 && isFirst)) {
                         opponentCount++;
                     }
                 }
@@ -292,11 +297,11 @@ public class AxelBrain implements CXPlayer {
             }
         }
 
-        if ((board.gameState() == CXGameState.WINP1 && is_first)
-                || (board.gameState() == CXGameState.WINP2 && !is_first))
+        if ((board.gameState() == CXGameState.WINP1 && isFirst)
+                || (board.gameState() == CXGameState.WINP2 && !isFirst))
             score = Integer.MAX_VALUE; //player winning
-        else if ((board.gameState() == CXGameState.WINP1 && !is_first)
-                || (board.gameState() == CXGameState.WINP2 && is_first))
+        else if ((board.gameState() == CXGameState.WINP1 && !isFirst)
+                || (board.gameState() == CXGameState.WINP2 && isFirst))
             score = Integer.MIN_VALUE; //player losing
         else if (board.gameState() == CXGameState.DRAW)
             score = 0; //draw
