@@ -1,4 +1,4 @@
-package connectx.AxelBrain;
+package connectx.AxelBrain2;
 
 import connectx.CXPlayer;
 import connectx.CXBoard;
@@ -14,22 +14,22 @@ import java.util.Map;
 import java.lang.instrument.Instrumentation;
 import java.util.Random;
 
-public class AxelBrain implements CXPlayer {
+public class AxelBrain2 implements CXPlayer {
     private Boolean isFirst;
     private Integer Columns;
     private Integer Rows;
     private Integer ToWin;
-    private int MAX_DEPTH = 5; // if x > 5 excedeed time limit
-    private int MAX_BRANCHING = 6; // if x > 6 excedeed time limit
+    private int MAX_DEPTH = 4; // if x > 5 excedeed time limit
+    //private int MAX_BRANCHING = 6; // if x > 6 excedeed time limit
     private int TIMEOUT;
     private long START;
     private int MAX_CACHE_SIZE = 2 * 1024 * 1024 * 1024; // 2gb of memory
     private static final int BYTES_PER_ENTRY = 16; //assuming general object costs 16 bytes
-    private Random rand;
     private final int CENTER_COLUMN_WEIGHT = 10;
 
+    private Random rand;
 
-    public AxelBrain() {
+    public AxelBrain2() {
     }
 
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
@@ -43,73 +43,51 @@ public class AxelBrain implements CXPlayer {
 
     public int selectColumn(CXBoard B) {
         START = System.currentTimeMillis(); // Save starting time
-        Integer[] availableColumns = B.getAvailableColumns();
-        //base column: randomic one from the list of not completly full
-        int bestColumn = availableColumns[rand.nextInt(availableColumns.length)];
+        Integer[] colAvailable = B.getAvailableColumns();
+        int bestColumn = colAvailable[colAvailable.length / 2];
         int bestScore = Integer.MIN_VALUE;
-
-        for (int column : availableColumns) {
-            int score;
-            try {
-                checktime();
-                B.markColumn(column);
-                score = findBestMove(B);
-                B.unmarkColumn();
-            
-            } catch (TimeoutException e) {
-                System.out.println("Timeout! Returning the best column found so far. :(");
-                return bestColumn;
-            }
-                if (score > bestScore) {
+    
+        try {
+            for (int depth = 1; depth <= MAX_DEPTH; depth++) {
+                int score = iterativeDeepening(B, depth);
+                if (score == Integer.MAX_VALUE) {
+                    // Found a winning move, stop searching
+                    return bestColumn;
+                } else if (score > bestScore) {
                     bestScore = score;
-                    bestColumn = column;
+                    // Randomly choose one of the best columns (if multiple)
+                    bestColumn = colAvailable[rand.nextInt(colAvailable.length)];
                 }
-        }
-        return  bestColumn;
-    }
-
-    public int findBestMove(CXBoard board) throws TimeoutException {
-        int bestScore = Integer.MIN_VALUE;
-
-        for (int depth = 1; depth <= MAX_DEPTH; depth++) {
-            checktime();
-            int score = iterativeDeepening(board, depth, Integer.MIN_VALUE, Integer.MAX_VALUE);
-            if (score > bestScore) {
-                bestScore = score;
             }
+    
+            return bestColumn;
+        } catch (TimeoutException e) {
+            System.err.println("Timeout! Returning the best column found so far. :(");
+            return bestColumn;
+        } catch (NullPointerException e) {
+            e.printStackTrace(); // Print the stack trace
+            return bestColumn;
         }
-
-        return bestScore;
     }
-
-    public int iterativeDeepening(CXBoard board, int depth, int alpha, int beta) throws TimeoutException {
+    
+    private int iterativeDeepening(CXBoard board, int depth) throws TimeoutException {
+        int alpha = Integer.MIN_VALUE;
+        int beta = Integer.MAX_VALUE;
         LinkedHashMap<CXBoard, Integer> visited = new LinkedHashMap<>();
-
-        int bestScore = Integer.MIN_VALUE;
-
-        while (depth!=MAX_BRANCHING) {
+    
+        for (int col : board.getAvailableColumns()) {
             checktime();
-            int score = alphaBetaWithMemory(board, depth, alpha, beta, true, visited);
-            if (score == Integer.MAX_VALUE || score == Integer.MIN_VALUE || score == 0) {
-                // Found a winning move, stop searching
-                return score;
-            }
-            //System.out.println(visited.size());
-            bestScore = score;
-            //depth increase each time
-            depth++;
-
-            if (bestScore >= beta) {
-                // Prune remaining branches
-                break;
-            }
+            board.markColumn(col);
+            int score = alphaBetaWithMemory(board, depth - 1, alpha, beta, false, visited);
+            visited.put(board.copy(), score);
+            board.unmarkColumn();
         }
-
-        return bestScore;
+    
+        return visited.get(board);
     }
 
     private int alphaBetaWithMemory(CXBoard board, int depth, int alpha, int beta, boolean maximizingPlayer,
-            LinkedHashMap<CXBoard, Integer> visited) throws TimeoutException {
+                                    LinkedHashMap<CXBoard, Integer> visited) throws TimeoutException {
         if (depth == 0 || board.gameState() != CXGameState.OPEN) {
             return evaluation(board);
         }
@@ -120,24 +98,11 @@ public class AxelBrain implements CXPlayer {
                 checktime();
                 board.markColumn(col);
                 int score;
-                //check presence of score of current board in hashMap
-                //else insert it
                 if (visited.containsKey(board)) {
                     score = visited.get(board);
-                    //remove the key from hashmap because the same board won't
-                    //represent in near future
-                    //visited.remove(board);
                 } else {
                     score = alphaBetaWithMemory(board, depth - 1, alpha, beta, false, visited);
                     visited.put(board.copy(), score);
-                    //Check if the cache size exceeds the limit, and if so, 
-                    //remove the least recently accessed element
-                    if (visited.size() * BYTES_PER_ENTRY > MAX_CACHE_SIZE) { 
-                        for (Map.Entry<CXBoard, Integer> entry : visited.entrySet()) {
-                            visited.remove(entry.getKey());
-                            break;
-                        }
-                    }
                 }
                 board.unmarkColumn();
 
@@ -154,24 +119,11 @@ public class AxelBrain implements CXPlayer {
                 checktime();
                 board.markColumn(col);
                 int score;
-                //check presence of score of current board in hashMap
-                //else insert it
                 if (visited.containsKey(board)) {
                     score = visited.get(board);
-                    //remove the kay from hashmap because the same board won't
-                    //represent in near future
-                    //visited.remove(board);
                 } else {
                     score = alphaBetaWithMemory(board, depth - 1, alpha, beta, true, visited);
                     visited.put(board.copy(), score);
-                    //Check if the cache size exceeds the limit, and if so, 
-                    //remove the least recently accessed element
-                    if (visited.size() * BYTES_PER_ENTRY > MAX_CACHE_SIZE) { 
-                        for (Map.Entry<CXBoard, Integer> entry : visited.entrySet()) {
-                            visited.remove(entry.getKey());
-                            break;
-                        }
-                    }
                 }
                 board.unmarkColumn();
 
@@ -184,6 +136,7 @@ public class AxelBrain implements CXPlayer {
             return minScore;
         }
     }
+
 
     private int evaluation(CXBoard board) {
         int score = 0;
@@ -313,6 +266,7 @@ public class AxelBrain implements CXPlayer {
             }
         }
 
+        //check of various state of game
         if ((board.gameState() == CXGameState.WINP1 && isFirst)
                 || (board.gameState() == CXGameState.WINP2 && !isFirst))
             score = Integer.MAX_VALUE; //player winning
@@ -331,6 +285,6 @@ public class AxelBrain implements CXPlayer {
 	}
 
     public String playerName(){
-        return "AxelBrain";
+        return "AxelBrain2";
     }    
 }
