@@ -39,6 +39,11 @@ public class AxelBrain implements CXPlayer {
         ToWin = K;
         TIMEOUT = timeout_in_secs;
         rand = new Random(System.currentTimeMillis());
+        //recalibration for larger boards
+        if(ToWin > 5){
+            MAX_DEPTH = 6;
+            MAX_BRANCHING = 10;
+        }
     }
 
     public int selectColumn(CXBoard B) {
@@ -57,13 +62,13 @@ public class AxelBrain implements CXPlayer {
                 B.unmarkColumn();
             
             } catch (TimeoutException e) {
-                System.out.println("Timeout! Returning the best column found so far. :(");
+                //System.out.println("Timeout! Returning the best column found so far. :(");
                 return bestColumn;
             }
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestColumn = column;
-                }
+            if (score > bestScore) {
+                bestScore = score;
+                bestColumn = column;
+            }
         }
         return  bestColumn;
     }
@@ -89,7 +94,11 @@ public class AxelBrain implements CXPlayer {
 
         while (depth!=MAX_BRANCHING) {
             checktime();
-            int score = alphaBetaWithMemory(board, depth, alpha, beta, true, visited);
+            int score;
+            if(visited.get(board)!=null)
+                score = visited.get(board);
+            else
+                score = alphaBetaWithMemory(board, depth, alpha, beta, true, visited);
             if (score == Integer.MAX_VALUE || score == Integer.MIN_VALUE || score == 0) {
                 // Found a winning move, stop searching
                 return score;
@@ -311,7 +320,7 @@ public class AxelBrain implements CXPlayer {
             } else if (board.cellState(i, centerCol) == CXCellState.P2 && !isFirst) {
                 score -= CENTER_COLUMN_WEIGHT;
             }
-        }
+        }        
 
         if ((board.gameState() == CXGameState.WINP1 && isFirst)
                 || (board.gameState() == CXGameState.WINP2 && !isFirst))
