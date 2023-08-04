@@ -53,12 +53,19 @@ public class AxelBrain implements CXPlayer {
         int bestColumn = availableColumns[rand.nextInt(availableColumns.length)];
         int bestScore = Integer.MIN_VALUE;
 
+        //best starting column if matrix is free
+        if(B.numOfMarkedCells() == 0 && ToWin != Rows)
+            return availableColumns.length/2;
+
         for (int column : availableColumns) {
             int score;
             try {
                 checktime();
                 B.markColumn(column);
-                score = findBestMove(B);
+                if(checkGameState(B) == -1)
+                    score = findBestMove(B);
+                else
+                    score = checkGameState(B);
                 B.unmarkColumn();
             
             } catch (TimeoutException e) {
@@ -78,7 +85,11 @@ public class AxelBrain implements CXPlayer {
 
         for (int depth = 1; depth <= MAX_DEPTH; depth++) {
             checktime();
-            int score = iterativeDeepening(board, depth, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            int score;
+            if(checkGameState(board) == -1)
+                score = iterativeDeepening(board, depth, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            else
+                score = checkGameState(board);
             if (score > bestScore) {
                 bestScore = score;
             }
@@ -95,10 +106,14 @@ public class AxelBrain implements CXPlayer {
         while (depth!=MAX_BRANCHING) {
             checktime();
             int score;
-            if(visited.get(board)!=null)
-                score = visited.get(board);
-            else
+            if(checkGameState(board) != -1){
+                return checkGameState(board); 
+            }
+            else if(visited.get(board) != null)
+                score = visited.get(board); //check for board already evalueted
+            else 
                 score = alphaBetaWithMemory(board, depth, alpha, beta, true, visited);
+
             if (score == Integer.MAX_VALUE || score == Integer.MIN_VALUE || score == 0) {
                 // Found a winning move, stop searching
                 return score;
@@ -133,9 +148,6 @@ public class AxelBrain implements CXPlayer {
                 //else insert it
                 if (visited.containsKey(board)) {
                     score = visited.get(board);
-                    //remove the key from hashmap because the same board won't
-                    //represent in near future
-                    //visited.remove(board);
                 } else {
                     score = alphaBetaWithMemory(board, depth - 1, alpha, beta, false, visited);
                     visited.put(board.copy(), score);
@@ -167,9 +179,6 @@ public class AxelBrain implements CXPlayer {
                 //else insert it
                 if (visited.containsKey(board)) {
                     score = visited.get(board);
-                    //remove the kay from hashmap because the same board won't
-                    //represent in near future
-                    //visited.remove(board);
                 } else {
                     score = alphaBetaWithMemory(board, depth - 1, alpha, beta, true, visited);
                     visited.put(board.copy(), score);
@@ -199,6 +208,10 @@ public class AxelBrain implements CXPlayer {
         int countToWin = ToWin;
         int rows = Rows;
         int cols = Columns;
+
+        //check for win, lose or draw
+        if(checkGameState(board) != -1)
+            return checkGameState(board);
 
         // Check horizontal lines
         for (int i = 0; i < rows; i++) {
@@ -320,18 +333,22 @@ public class AxelBrain implements CXPlayer {
             } else if (board.cellState(i, centerCol) == CXCellState.P2 && !isFirst) {
                 score -= CENTER_COLUMN_WEIGHT;
             }
-        }        
-
-        if ((board.gameState() == CXGameState.WINP1 && isFirst)
-                || (board.gameState() == CXGameState.WINP2 && !isFirst))
-            score = Integer.MAX_VALUE; //player winning
-        else if ((board.gameState() == CXGameState.WINP1 && !isFirst)
-                || (board.gameState() == CXGameState.WINP2 && isFirst))
-            score = Integer.MIN_VALUE; //player losing
-        else if (board.gameState() == CXGameState.DRAW)
-            score = 0; //draw
+        } 
 
         return score;
+    }
+
+    int checkGameState(CXBoard board){
+        if ((board.gameState() == CXGameState.WINP1 && isFirst)
+                || (board.gameState() == CXGameState.WINP2 && !isFirst))
+            return Integer.MAX_VALUE; //player winning
+        else if ((board.gameState() == CXGameState.WINP1 && !isFirst)
+                || (board.gameState() == CXGameState.WINP2 && isFirst))
+            return Integer.MIN_VALUE; //player losing
+        else if (board.gameState() == CXGameState.DRAW)
+            return 0; //draw
+
+        return -1;
     }
 
     private void checktime() throws TimeoutException {
