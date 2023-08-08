@@ -37,6 +37,9 @@ public class AxelBrain2 implements CXPlayer {
         ToWin = K;
         TIMEOUT = timeout_in_secs;
         rand = new Random(System.currentTimeMillis());
+        if(ToWin == 10){
+            MAX_BRANCHING = 8; //recalibration for larger boards
+        }
     }
 
     public int selectColumn(CXBoard B) {
@@ -269,6 +272,7 @@ public class AxelBrain2 implements CXPlayer {
 
         // Consider center columns to be more valuable
         int centerCol = cols / 2;
+        //System.out.println("center column: " + centerCol);
         for (int i = 0; i < rows; i++) {
             if(ToWin <= 5){    
                 if (board.cellState(i, centerCol) == CXCellState.P1 && isFirst ||
@@ -278,33 +282,26 @@ public class AxelBrain2 implements CXPlayer {
                             board.cellState(i, centerCol) == CXCellState.P1 && !isFirst) {
                     score -= CENTER_COLUMN_WEIGHT;
                 }
-            } else if(ToWin == 10){
+             } else if(ToWin == 10){
+                //center column recalibration for larger boards
                 int colAdjust = 1;
+                int colCenterIndex = 10;
                     if(cols == 20){
-                        colAdjust = 2;
+                        colAdjust = 3;
                     }else if(cols == 30){
-                        colAdjust = 6;
+                        colAdjust = 13;
                     }else if(cols == 40){
-                        colAdjust = 10;
+                        colAdjust = 23;
                     }else if(cols == 50){
-                        colAdjust = 15;
+                        colAdjust = 32;
                     }
                 for(int j = 0; j < colAdjust; j++){
-                    if (board.cellState(i, centerCol + j) == CXCellState.P1 && isFirst ||
-                        board.cellState(i, centerCol + j) == CXCellState.P2 && !isFirst) {
+                    if (board.cellState(i, colCenterIndex + j) == CXCellState.P1 && isFirst ||
+                        board.cellState(i, colCenterIndex + j) == CXCellState.P2 && !isFirst) {
                         score += CENTER_COLUMN_WEIGHT;
-                    } else if (board.cellState(i, centerCol + j) == CXCellState.P2 && isFirst ||
-                                board.cellState(i, centerCol + j) == CXCellState.P1 && !isFirst) {
+                    } else if (board.cellState(i, colCenterIndex + j) == CXCellState.P2 && isFirst ||
+                                board.cellState(i, colCenterIndex + j) == CXCellState.P1 && !isFirst) {
                         score -= CENTER_COLUMN_WEIGHT;
-                    } 
-                    if(j != 0){  //preventsdouble count for j==0  
-                        if (board.cellState(i, centerCol - j) == CXCellState.P1 && isFirst ||
-                                    board.cellState(i, centerCol - j) == CXCellState.P2 && !isFirst) {
-                            score += CENTER_COLUMN_WEIGHT;
-                        } else if (board.cellState(i, centerCol - j) == CXCellState.P2 && isFirst ||
-                                    board.cellState(i, centerCol - j) == CXCellState.P1 && !isFirst) {
-                            score -= CENTER_COLUMN_WEIGHT;
-                        } 
                     }               
                 }                
             }
