@@ -38,7 +38,7 @@ public class AxelBrain2 implements CXPlayer {
         TIMEOUT = timeout_in_secs;
         rand = new Random(System.currentTimeMillis());
         if(ToWin == 10){
-            MAX_BRANCHING = 8; //recalibration for larger boards
+            MAX_BRANCHING = 12; //recalibration for larger boards
         }
     }
 
