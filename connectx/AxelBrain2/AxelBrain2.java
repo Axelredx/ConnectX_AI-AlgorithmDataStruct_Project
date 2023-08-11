@@ -1,3 +1,12 @@
+/* 
+ * "AxelBrain", un progetto di Alex Rossi mat:0001089916;
+ *  CST course a.y. 22/23, Alma Mater Studiorum, University of Bologna, Italy.
+ *
+ *  This  is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details; see <https://www.gnu.org/licenses/>.
+ */
 package connectx.AxelBrain2;
 
 import connectx.CXPlayer;
