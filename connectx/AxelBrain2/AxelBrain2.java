@@ -59,8 +59,12 @@ public class AxelBrain2 implements CXPlayer {
         LinkedHashMap<CXBoard, Integer> visited = new LinkedHashMap<>();
 
         //best starting column if matrix is free
-        if(B.numOfMarkedCells() == 0 && ToWin != Rows)
+        if(ToWin <= 5){
+            if(B.numOfMarkedCells() == 0 && ToWin != Rows)
             return availableColumns.length/2;
+        }else if(ToWin == 10){
+            return 1; //DA FARE
+        }
 
         for (int column : availableColumns) {
             int score;
