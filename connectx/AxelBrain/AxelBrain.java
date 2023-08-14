@@ -65,14 +65,6 @@ public class AxelBrain implements CXPlayer {
             colOrder[i] = Columns/2 + (1-2*(i%2))*(i+1)/2;
         }
 
-        //best starting column if matrix is free
-        /*if(ToWin <= 5){
-            if(B.numOfMarkedCells() == 0 && ToWin != Rows)
-            return availableColumns.length/2;
-        }else if(ToWin == 10){
-            return 1; //DA FARE
-        }*/
-
         for (int column = 0; column < Columns; column++) {
             if(!B.fullColumn(colOrder[column])){
                 int score;
