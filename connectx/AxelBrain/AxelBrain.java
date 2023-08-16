@@ -26,7 +26,7 @@ public class AxelBrain implements CXPlayer {
     private Integer Columns;
     private Integer Rows;
     private Integer ToWin;
-    private int MAX_BRANCHING = 6; // 6 is nearly perfect against L1
+    private int MAX_BRANCHING = 7; 
     private int TIMEOUT;
     private long START;
     private int MAX_CACHE_SIZE = 2 * 1024 * 1024 * 1024; // 2gb of memory
@@ -45,8 +45,23 @@ public class AxelBrain implements CXPlayer {
         ToWin = K;
         TIMEOUT = timeout_in_secs;
         rand = new Random(System.currentTimeMillis());
-        if(ToWin == 10){
-            MAX_BRANCHING = 8; //recalibration for larger boards
+
+        //Dynamic branching factor based on time
+        if(timeout_in_secs == 1)
+            MAX_BRANCHING = 6;
+        else if (timeout_in_secs == 3)
+            MAX_BRANCHING = 7;
+        else if (timeout_in_secs == 10)
+            MAX_BRANCHING = 8;
+         
+        if(ToWin == 10){ //recalibration for larger boards
+            if(timeout_in_secs == 1)
+                MAX_BRANCHING = 2; 
+            else if(timeout_in_secs == 10)
+                MAX_BRANCHING = 3;
+                
+            if(Columns == 30)
+                MAX_BRANCHING -= 1;
         }
     }
 
