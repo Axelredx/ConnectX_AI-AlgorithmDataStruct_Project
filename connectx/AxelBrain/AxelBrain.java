@@ -45,7 +45,6 @@ public class AxelBrain implements CXPlayer {
         ToWin = K;
         TIMEOUT = timeout_in_secs;
         rand = new Random(System.currentTimeMillis());
-
         //Dynamic branching factor based on time
         if(timeout_in_secs == 1)
             MAX_BRANCHING = 6;
@@ -53,15 +52,18 @@ public class AxelBrain implements CXPlayer {
             MAX_BRANCHING = 7;
         else if (timeout_in_secs == 10)
             MAX_BRANCHING = 8;
-         
+            
         if(ToWin == 10){ //recalibration for larger boards
             if(timeout_in_secs == 1)
                 MAX_BRANCHING = 2; 
             else if(timeout_in_secs == 10)
                 MAX_BRANCHING = 3;
-                
-            if(Columns == 30)
-                MAX_BRANCHING -= 1;
+
+            if(Columns > 20 ){
+                MAX_BRANCHING = 2; 
+                if(timeout_in_secs < 10 || Columns > 30)
+                    MAX_BRANCHING = 1;
+            }
         }
     }
 

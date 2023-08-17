@@ -8,8 +8,9 @@
  *  GNU General Public License for more details; see <https://www.gnu.org/licenses/>.
  */
 
-**How to use the program:**
-- Command-line compile.  In the connectx/ directory run::
+**How to use the program (compile and setup):**
+- Put 'AxelBrain' directory in 'connectx' directory;
+- Command-line compile.  In the connectx/ directory run:
 
 		javac -cp ".." *.java */*.java
 

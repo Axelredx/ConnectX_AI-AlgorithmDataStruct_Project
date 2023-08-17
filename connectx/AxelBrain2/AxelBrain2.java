@@ -59,8 +59,11 @@ public class AxelBrain2 implements CXPlayer {
             else if(timeout_in_secs == 10)
                 MAX_BRANCHING = 3;
 
-            if(Columns == 30)
-                MAX_BRANCHING -= 1;                
+            if(Columns > 20 ){
+                MAX_BRANCHING = 2; 
+                if(timeout_in_secs < 10 || Columns > 30)
+                    MAX_BRANCHING = 1;
+            }
         }
     }
 
