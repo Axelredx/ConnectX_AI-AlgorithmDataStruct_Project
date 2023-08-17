@@ -1,4 +1,5 @@
-/* ConnectX is a generalised version of Connect4, in this project I've developped "AxelBrain"
+/* 
+ * ConnectX is a generalised version of Connect4, in this project I've developped "AxelBrain"
  * an AI that can sees 6/8 moves ahead to compete against L0 and L1 AI.
  *
  * "AxelBrain", a project of Alex Rossi, mat:0001089916, alex.rossi7@studio.unibo.it;
